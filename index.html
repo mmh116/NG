@@ -41,8 +41,17 @@
             User ID: <span id="userIdDisplay">Loading...</span>
         </div>
 
+        <!-- Current Nickname Display -->
+        <div class="text-sm text-gray-600 text-center mb-2">
+            လက်ရှိနာမည်ပြောင်: <span id="currentNicknameDisplay" class="font-semibold text-blue-600">ရွေးချယ်ထားခြင်းမရှိသေးပါ</span>
+        </div>
+
         <!-- Header and Date Navigation -->
         <div class="flex items-center justify-between mb-2 p-2 bg-blue-600 text-white rounded-xl shadow-md">
+            <!-- Nickname Button (left of prevDate) -->
+            <button id="nicknameBtn" class="p-2 rounded-full hover:bg-blue-700 transition-colors text-sm mr-2">
+                <i class="fas fa-user-tag"></i>
+            </button>
             <button id="prevDate" class="p-2 rounded-full hover:bg-blue-700 transition-colors text-sm">
                 <i class="fas fa-arrow-left"></i>
             </button>
@@ -121,6 +130,43 @@
             </div>
         </div>
 
+        <!-- Nickname Selection Modal -->
+        <div id="nicknameModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+                <h3 class="text-lg font-bold mb-4 text-center">နာမည်ပြောင် ရွေးချယ်ပါ / ထည့်သွင်းပါ</h3>
+                <div class="mb-4">
+                    <label for="newNicknameInput" class="block text-sm font-medium text-gray-700 mb-1">နာမည်ပြောင်အသစ် ထည့်သွင်းပါ:</label>
+                    <input type="text" id="newNicknameInput" placeholder="ဥပမာ: ကိုမင်း"
+                           class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="addNewNicknameBtn" class="mt-2 w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                        နာမည်ပြောင် အသစ်ထည့်ပါ
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ရှိပြီးသား နာမည်ပြောင်များ:</label>
+                    <ul id="existingNicknamesList" class="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-2 bg-gray-50">
+                        <!-- Existing nicknames will be loaded here -->
+                    </ul>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button id="closeNicknameModalBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">ပိတ်မည်</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Nickname Modal -->
+        <div id="editNicknameModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+                <h3 class="text-lg font-bold mb-4 text-center">နာမည်ပြောင် ပြင်ဆင်ပါ</h3>
+                <p class="text-sm text-gray-700 mb-3">နာမည်ပြောင်အသစ်ကို ထည့်သွင်းပါ။</p>
+                <input type="text" id="editNicknameInput" placeholder="နာမည်ပြောင်အသစ်"
+                       class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <div class="flex justify-end space-x-4">
+                    <button id="saveEditedNicknameBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">သိမ်းဆည်းပါ</button>
+                    <button id="cancelEditNicknameBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">ဖျက်သိမ်းပါ</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Toast Message -->
         <div id="toastMessage" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg hidden z-50">
@@ -148,8 +194,8 @@
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, query, where, addDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js"; // Import getAnalytics
+        import { getFirestore, doc, collection, query, where, addDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, setDoc, updateDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
         // Your web app's Firebase configuration - now dynamically loaded
         // The __firebase_config and __app_id variables are provided by the Canvas environment.
@@ -171,21 +217,22 @@
         let app;
         let db;
         let auth;
-        let analytics; // Declare analytics variable
+        let analytics;
         let userId = null;
         let salesCollectionRef;
+        let userSettingsDocRef; // Reference to user's settings document
         let currentSalesData = []; // Store fetched sales data for summary
 
         // UI Elements
-        const userIdDisplay = document.getElementById('userIdDisplay'); // New element for User ID
+        const userIdDisplay = document.getElementById('userIdDisplay');
         const currentDateElem = document.getElementById('currentDate');
         const prevDateBtn = document.getElementById('prevDate');
         const nextDateBtn = document.getElementById('nextDate');
         const salesListElem = document.getElementById('salesList');
-        const amountInput = document.getElementById('amountInput'); // Now a textarea
+        const amountInput = document.getElementById('amountInput');
         const addBetButton = document.getElementById('addBetButton');
         const loadingIndicator = document.getElementById('loadingIndicator');
-        const showTotalSalesBtn = document.getElementById('showTotalSalesBtn'); // New button
+        const showTotalSalesBtn = document.getElementById('showTotalSalesBtn');
 
         // Session UI Elements
         const morningSessionBtn = document.getElementById('morningSessionBtn');
@@ -213,14 +260,31 @@
         const copySummaryBtn = document.getElementById('copySummaryBtn');
         const closeSummaryModalBtn = document.getElementById('closeSummaryModalBtn');
 
+        // Nickname UI Elements
+        const nicknameBtn = document.getElementById('nicknameBtn');
+        const currentNicknameDisplay = document.getElementById('currentNicknameDisplay');
+        const nicknameModal = document.getElementById('nicknameModal');
+        const newNicknameInput = document.getElementById('newNicknameInput');
+        const addNewNicknameBtn = document.getElementById('addNewNicknameBtn');
+        const existingNicknamesList = document.getElementById('existingNicknamesList');
+        const closeNicknameModalBtn = document.getElementById('closeNicknameModalBtn');
+
+        // Edit Nickname Modal Elements
+        const editNicknameModal = document.getElementById('editNicknameModal');
+        const editNicknameInput = document.getElementById('editNicknameInput');
+        const saveEditedNicknameBtn = document.getElementById('saveEditedNicknameBtn');
+        const cancelEditNicknameBtn = document.getElementById('cancelEditNicknameBtn');
+        let editingOldNickname = ''; // To store the nickname being edited
+
         // Toast Message Element
         const toastMessageElem = document.getElementById('toastMessage');
 
         // Date and Session state
         let selectedDate = new Date(); // Default to today
         let currentSession = 'morning'; // 'morning' or 'evening'
+        let currentNickname = ''; // Currently selected nickname
 
-        // Function to format date to McClellan-MM-DD
+        // Function to format date to YYYY-MM-DD
         function formatDate(date) {
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -286,8 +350,13 @@
         function updateDateDisplay() {
             const sessionText = currentSession === 'morning' ? '(မနက်)' : '(ညနေ)';
             currentDateElem.textContent = `${formatDate(selectedDate)} ${sessionText}`;
+            updateNicknameDisplay(); // Update nickname display and then fetch sales
+        }
+
+        // Function to update nickname display and trigger sales fetch
+        function updateNicknameDisplay() {
+            currentNicknameDisplay.textContent = currentNickname || 'ရွေးချယ်ထားခြင်းမရှိသေးပါ';
             fetchSalesForSelectedDate();
-            updateSessionButtons(); // Update button appearance
         }
 
         // Function to show loading indicator
@@ -557,7 +626,7 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                analytics = getAnalytics(app); // Initialize analytics
+                analytics = getAnalytics(app);
 
                 // Attempt custom token sign-in, fall back to anonymous
                 try {
@@ -572,21 +641,27 @@
                 }
 
                 // Set up auth state listener
-                onAuthStateChanged(auth, (user) => {
+                onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        userIdDisplay.textContent = userId; // Display the user ID
+                        userIdDisplay.textContent = userId;
                         console.log("Authenticated user ID:", userId);
-                        // Use the dynamically determined currentAppId in the collection path
+                        
+                        // Initialize Firestore references
                         salesCollectionRef = collection(db, `artifacts/${currentAppId}/users/${userId}/sales`);
+                        userSettingsDocRef = doc(db, `artifacts/${currentAppId}/users/${userId}/settings/userPreferences`);
+
+                        await loadUserSettings(); // Load nickname settings
                         updateDateDisplay(); // Initial display and fetch
                     } else {
                         userId = null;
-                        userIdDisplay.textContent = "Not authenticated"; // Indicate not authenticated
+                        userIdDisplay.textContent = "Not authenticated";
                         console.log("No user signed in.");
                         salesListElem.innerHTML = '<li class="text-center text-gray-500">အကောင့်ဝင်ရန်လိုအပ်ပါသည်။</li>';
+                        currentNickname = ''; // Clear nickname if not authenticated
+                        updateNicknameDisplay();
                     }
-                    hideLoading(); // Hide loading after auth state is determined
+                    hideLoading();
                 });
 
             } catch (error) {
@@ -597,12 +672,57 @@
             }
         }
 
-        // Fetch sales data for the selected date and session
+        // Load user settings (last selected nickname and all used nicknames)
+        async function loadUserSettings() {
+            try {
+                const docSnap = await getDoc(userSettingsDocRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.lastSelectedNickname) {
+                        currentNickname = data.lastSelectedNickname;
+                    }
+                }
+            } catch (error) {
+                console.error("Error loading user settings:", error);
+                showCustomModal(`အသုံးပြုသူ ဆက်တင်များ တင်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။ (${error.message})`, 'alert');
+            }
+        }
+
+        // Save user settings (last selected nickname and all used nicknames)
+        async function saveUserSettings(nicknameToSave) {
+            try {
+                const docSnap = await getDoc(userSettingsDocRef);
+                let allUsedNicknames = [];
+                if (docSnap.exists()) {
+                    allUsedNicknames = docSnap.data().allUsedNicknames || [];
+                }
+                
+                if (!allUsedNicknames.includes(nicknameToSave)) {
+                    allUsedNicknames.push(nicknameToSave);
+                }
+
+                await setDoc(userSettingsDocRef, {
+                    lastSelectedNickname: nicknameToSave,
+                    allUsedNicknames: allUsedNicknames
+                }, { merge: true }); // Use merge to avoid overwriting other settings
+                console.log("User settings saved:", { lastSelectedNickname: nicknameToSave, allUsedNicknames });
+            } catch (error) {
+                console.error("Error saving user settings:", error);
+                showCustomModal(`အသုံးပြုသူ ဆက်တင်များ သိမ်းဆည်းရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။ (${error.message})`, 'alert');
+            }
+        }
+
+        // Fetch sales data for the selected date, session, and nickname
         let unsubscribeSales = null;
 
         function fetchSalesForSelectedDate() {
             if (!userId) {
                 console.log("User not authenticated, cannot fetch sales.");
+                return;
+            }
+            if (!currentNickname) {
+                salesListElem.innerHTML = '<li class="text-center text-gray-500">အရောင်းစာရင်းများ ကြည့်ရှုရန် နာမည်ပြောင် ရွေးချယ်ပါ။</li>';
+                hideLoading();
                 return;
             }
 
@@ -614,8 +734,11 @@
             showLoading();
 
             const formattedDate = formatDate(selectedDate);
-            // Query by both date and session
-            const q = query(salesCollectionRef, where("date", "==", formattedDate), where("session", "==", currentSession));
+            // Query by date, session, AND nickname
+            const q = query(salesCollectionRef, 
+                            where("date", "==", formattedDate), 
+                            where("session", "==", currentSession),
+                            where("nickname", "==", currentNickname));
 
             unsubscribeSales = onSnapshot(q, (snapshot) => {
                 salesListElem.innerHTML = '';
@@ -674,6 +797,11 @@
                 showCustomModal("အကောင့်ဝင်ရန်လိုအပ်ပါသည်။", 'alert');
                 return;
             }
+            if (!currentNickname) {
+                showCustomModal("အရောင်းစာရင်း ထည့်သွင်းရန် နာမည်ပြောင် ရွေးချယ်ပါ။", 'alert');
+                hideLoading();
+                return;
+            }
 
             const lines = inputContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
             if (lines.length === 0) {
@@ -708,6 +836,7 @@
                     await addDoc(salesCollectionRef, {
                         date: formatDate(selectedDate),
                         session: currentSession, // Add session field
+                        nickname: currentNickname, // Add nickname field
                         rawInput: combinedRawInput,
                         totalAmount: combinedTotalAmount,
                         timestamp: serverTimestamp()
@@ -791,7 +920,6 @@
                 if (confirmed) {
                     showLoading();
                     try {
-                        // Use the currentAppId for the collection path during deletion
                         await deleteDoc(doc(db, `artifacts/${currentAppId}/users/${userId}/sales`, saleId));
                         showToast("အရောင်းစာရင်း ဖျက်ပြီးပါပြီ။");
                         console.log("Sale deleted successfully!");
@@ -811,10 +939,14 @@
                 showCustomModal("အကောင့်ဝင်ရန်လိုအပ်ပါသည်။", 'alert');
                 return;
             }
+            if (!currentNickname) {
+                showCustomModal("စုစုပေါင်းအရောင်း ကြည့်ရှုရန် နာမည်ပြောင် ရွေးချယ်ပါ။", 'alert');
+                return;
+            }
 
             const formattedDate = formatDate(selectedDate);
             const sessionText = currentSession === 'morning' ? 'မနက်' : 'ညနေ';
-            summaryDateElem.textContent = `${formattedDate} (${sessionText})`; // Include session in summary date
+            summaryDateElem.textContent = `${formattedDate} (${sessionText}) - ${currentNickname}`; // Include session and nickname in summary date
 
             // Stores NN -> { exactSum: number, reversePairSum: number }
             // exactSum: total amount directly bet on NN (e.g., 12=100)
@@ -965,6 +1097,212 @@
             currentSession = 'evening';
             updateDateDisplay();
         });
+
+        // Nickname button event listeners
+        nicknameBtn.addEventListener('click', async () => {
+            if (!userId) {
+                showCustomModal("နာမည်ပြောင်ရွေးချယ်ရန် အကောင့်ဝင်ရန်လိုအပ်ပါသည်။", 'alert');
+                return;
+            }
+            await populateNicknamesList();
+            nicknameModal.classList.remove('hidden');
+        });
+
+        addNewNicknameBtn.addEventListener('click', async () => {
+            const newNickname = newNicknameInput.value.trim();
+            if (newNickname) {
+                // Check if nickname already exists before adding
+                const docSnap = await getDoc(userSettingsDocRef);
+                const allUsedNicknames = docSnap.exists() ? (docSnap.data().allUsedNicknames || []) : [];
+                if (allUsedNicknames.includes(newNickname)) {
+                    showCustomModal("ဤနာမည်ပြောင် ရှိပြီးသားဖြစ်သည်။", 'alert');
+                    return;
+                }
+                await selectNickname(newNickname);
+                newNicknameInput.value = ''; // Clear input after adding
+            } else {
+                showToast("နာမည်ပြောင် ထည့်သွင်းပါ။");
+            }
+        });
+
+        // Event listener for nickname list (selection, edit, delete)
+        existingNicknamesList.addEventListener('click', async (event) => {
+            if (event.target.closest('.edit-nickname-btn')) {
+                // Handle Edit button click
+                editingOldNickname = event.target.closest('button').dataset.nickname;
+                editNicknameInput.value = editingOldNickname;
+                nicknameModal.classList.add('hidden'); // Hide nickname selection modal
+                editNicknameModal.classList.remove('hidden'); // Show edit modal
+            } else if (event.target.closest('.delete-nickname-btn')) {
+                // Handle Delete button click
+                const nicknameToDelete = event.target.closest('button').dataset.nickname;
+                await handleDeleteNickname(nicknameToDelete);
+            } else if (event.target.tagName === 'SPAN' && event.target.dataset.nickname) {
+                // Handle Nickname text click (for selection)
+                const selected = event.target.dataset.nickname;
+                await selectNickname(selected);
+            }
+        });
+
+        // Save Edited Nickname
+        saveEditedNicknameBtn.addEventListener('click', async () => {
+            const newNickname = editNicknameInput.value.trim();
+            if (!newNickname) {
+                showToast("နာမည်ပြောင်အသစ် ထည့်သွင်းပါ။");
+                return;
+            }
+            if (newNickname === editingOldNickname) {
+                showToast("နာမည်ပြောင် မပြောင်းလဲပါ။");
+                editNicknameModal.classList.add('hidden');
+                return;
+            }
+
+            showLoading();
+            try {
+                const docSnap = await getDoc(userSettingsDocRef);
+                let allUsedNicknames = docSnap.exists() ? (docSnap.data().allUsedNicknames || []) : [];
+
+                if (allUsedNicknames.includes(newNickname)) {
+                    showCustomModal("ဤနာမည်ပြောင် ရှိပြီးသားဖြစ်သည်။", 'alert');
+                    hideLoading();
+                    return;
+                }
+
+                // Update the nickname in the allUsedNicknames array
+                const index = allUsedNicknames.indexOf(editingOldNickname);
+                if (index > -1) {
+                    allUsedNicknames[index] = newNickname;
+                } else {
+                    console.warn(`Editing old nickname '${editingOldNickname}' not found in list. Adding new one.`);
+                    allUsedNicknames.push(newNickname);
+                }
+
+                // Update lastSelectedNickname if the edited one was currently selected
+                if (currentNickname === editingOldNickname) {
+                    currentNickname = newNickname;
+                }
+
+                await setDoc(userSettingsDocRef, {
+                    lastSelectedNickname: currentNickname,
+                    allUsedNicknames: allUsedNicknames
+                }, { merge: true });
+
+                // Update existing sales documents with the new nickname using a batch write
+                const q = query(salesCollectionRef, where("nickname", "==", editingOldNickname));
+                const querySnapshot = await getDocs(q);
+                const batch = writeBatch(db); // Use writeBatch from 'firebase/firestore'
+                querySnapshot.forEach((doc) => {
+                    batch.update(doc.ref, { nickname: newNickname });
+                });
+                await batch.commit();
+
+                showToast(`နာမည်ပြောင် '${editingOldNickname}' မှ '${newNickname}' သို့ ပြင်ဆင်ပြီးပါပြီ။`);
+                editNicknameModal.classList.add('hidden');
+                populateNicknamesList(); // Refresh the list in the modal
+                updateNicknameDisplay(); // Update the main display and re-fetch sales
+            } catch (error) {
+                console.error("Error editing nickname:", error);
+                showCustomModal(`နာမည်ပြောင် ပြင်ဆင်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။ (${error.message})`, 'alert');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Cancel Edit Nickname
+        cancelEditNicknameBtn.addEventListener('click', () => {
+            editNicknameModal.classList.add('hidden');
+        });
+
+        // Close nickname selection modal
+        closeNicknameModalBtn.addEventListener('click', () => {
+            nicknameModal.classList.add('hidden');
+        });
+
+        // Function to populate the list of existing nicknames in the modal
+        async function populateNicknamesList() {
+            existingNicknamesList.innerHTML = '<li class="text-center text-gray-500">နာမည်ပြောင်များ တင်နေပါသည်...</li>';
+            try {
+                const docSnap = await getDoc(userSettingsDocRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const nicknames = data.allUsedNicknames || [];
+                    existingNicknamesList.innerHTML = '';
+                    if (nicknames.length === 0) {
+                        existingNicknamesList.innerHTML = '<li class="text-center text-gray-500">နာမည်ပြောင် မရှိသေးပါ။</li>';
+                    } else {
+                        nicknames.forEach(nickname => {
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between items-center p-2 rounded-md';
+                            if (nickname === currentNickname) {
+                                li.classList.add('bg-blue-200', 'font-bold');
+                            }
+                            li.innerHTML = `
+                                <span class="flex-grow cursor-pointer" data-nickname="${nickname}">${nickname}</span>
+                                <div>
+                                    <button class="edit-nickname-btn text-blue-500 hover:text-blue-700 ml-2" data-nickname="${nickname}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="delete-nickname-btn text-red-500 hover:text-red-700 ml-2" data-nickname="${nickname}">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            `;
+                            existingNicknamesList.appendChild(li);
+                        });
+                    }
+                } else {
+                    existingNicknamesList.innerHTML = '<li class="text-center text-gray-500">နာမည်ပြောင် မရှိသေးပါ။</li>';
+                }
+            } catch (error) {
+                console.error("Error populating nicknames list:", error);
+                existingNicknamesList.innerHTML = '<li class="text-center text-red-500">နာမည်ပြောင်များ တင်မရပါ။</li>';
+            }
+        }
+
+        // Function to select a nickname, update state, save settings, and close modal
+        async function selectNickname(nickname) {
+            currentNickname = nickname;
+            await saveUserSettings(nickname);
+            updateNicknameDisplay();
+            nicknameModal.classList.add('hidden');
+            showToast(`နာမည်ပြောင် '${nickname}' ကို ရွေးချယ်ပြီးပါပြီ။`);
+        }
+
+        // Handle Delete Nickname
+        async function handleDeleteNickname(nicknameToDelete) {
+            const confirmed = await showCustomModal(`နာမည်ပြောင် '${nicknameToDelete}' ကို ဖျက်ရန် သေချာပါလား။ ဤနာမည်ပြောင်ဖြင့် မှတ်တမ်းတင်ထားသော အရောင်းစာရင်းများကို ဖျက်မည်မဟုတ်ပါ။`, 'confirm');
+            if (!confirmed) {
+                return;
+            }
+
+            showLoading();
+            try {
+                const docSnap = await getDoc(userSettingsDocRef);
+                let allUsedNicknames = docSnap.exists() ? (docSnap.data().allUsedNicknames || []) : [];
+
+                // Remove the nickname from the allUsedNicknames array
+                allUsedNicknames = allUsedNicknames.filter(n => n !== nicknameToDelete);
+
+                // If the deleted nickname was currently selected, clear currentNickname
+                if (currentNickname === nicknameToDelete) {
+                    currentNickname = ''; // Reset to empty, user will need to select again
+                }
+
+                await setDoc(userSettingsDocRef, {
+                    lastSelectedNickname: currentNickname,
+                    allUsedNicknames: allUsedNicknames
+                }, { merge: true });
+
+                showToast(`နာမည်ပြောင် '${nicknameToDelete}' ကို ဖျက်ပြီးပါပြီ။`);
+                populateNicknamesList(); // Refresh the list in the modal
+                updateNicknameDisplay(); // Update the main display and re-fetch sales
+            } catch (error) {
+                console.error("Error deleting nickname:", error);
+                showCustomModal(`နာမည်ပြောင် ဖျက်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။ (${error.message})`, 'alert');
+            } finally {
+                hideLoading();
+            }
+        }
 
         // Initialize Firebase when the window loads
         window.onload = initializeFirebase;
