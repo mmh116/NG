@@ -31,10 +31,15 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 min-h-screen flex flex-col items-center py-4">
+<body class="bg-white min-h-screen flex flex-col items-center py-4">
 
     <!-- Main Application Container -->
     <div class="bg-white rounded-2xl shadow-xl p-4 w-full max-w-md flex flex-col flex-grow relative mb-40">
+
+        <!-- User ID Display -->
+        <div class="text-xs text-gray-500 text-right mb-2">
+            User ID: <span id="userIdDisplay">Loading...</span>
+        </div>
 
         <!-- Header and Date Navigation -->
         <div class="flex items-center justify-between mb-2 p-2 bg-blue-600 text-white rounded-xl shadow-md">
@@ -142,12 +147,13 @@
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js"; // Analytics is optional and not directly used in core functionality
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, collection, query, where, addDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js"; // Import getAnalytics
 
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
+        // Your web app's Firebase configuration - now dynamically loaded
+        // The __firebase_config and __app_id variables are provided by the Canvas environment.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyDUf0QF4GqMb6s9ODTUiX7aTHRTR0YUqcE",
             authDomain: "html-3ce83.firebaseapp.com",
             databaseURL: "https://html-3ce83-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -158,15 +164,20 @@
             measurementId: "G-GFRJP832GJ"
         };
 
+        // Determine the current app ID for Firestore collection path
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
+
         // Firebase App and Services
         let app;
         let db;
         let auth;
+        let analytics; // Declare analytics variable
         let userId = null;
         let salesCollectionRef;
         let currentSalesData = []; // Store fetched sales data for summary
 
         // UI Elements
+        const userIdDisplay = document.getElementById('userIdDisplay'); // New element for User ID
         const currentDateElem = document.getElementById('currentDate');
         const prevDateBtn = document.getElementById('prevDate');
         const nextDateBtn = document.getElementById('nextDate');
@@ -298,24 +309,49 @@
             return numStr[1] + numStr[0];
         };
 
+        // Helper to get canonical number (smaller of NN and NN_rev)
+        const getCanonical = (numStr) => {
+            if (numStr.length !== 2) return numStr;
+            const revNumStr = numStr[1] + numStr[0];
+            if (numStr === revNumStr) return numStr; // Doubles are their own canonical
+            return parseInt(numStr) < parseInt(revNumStr) ? numStr : revNumStr;
+        };
+
         /**
-         * Parses a single line of input and calculates its total amount.
-         * Returns { totalAmount: number, rawInput: string }.
+         * Parses a single line of input and calculates its total amount,
+         * also returning detailed breakdown of numbers and their individual amounts.
+         * Returns { totalAmount: number, details: Array<{num: string, type: 'exact' | 'reverse_pair', amount: number}>, rawInput: string }.
          * Throws an error if parsing fails.
          */
-        function parseSingleLineBet(lineInput) {
+        function parseSingleLineBetDetailed(lineInput) {
             let totalCalculatedAmount = 0;
+            const details = []; // Stores { num: string, amount: number, type: 'exact' | 'reverse_pair' }
             const originalLine = lineInput.trim();
-
             let cleanedLine = originalLine.toLowerCase().replace(/က/g, '=').replace(/\s+/g, ' ').trim();
 
+            // Helper to add a number and its amount to details for display
+            const addDetail = (numStr, amount, type) => {
+                details.push({ num: numStr, amount: amount, type: type });
+            };
+
+            // Helper to add to totalCalculatedAmount (this is the actual money bet)
+            const addToTotalCalculatedAmount = (amount) => {
+                totalCalculatedAmount += amount;
+            };
+
             // 1. "ပါဝါ" (power)
+            // For each power pair (e.g., 16, 61), add both numbers with the amount.
             const powerMatch = cleanedLine.match(/^(?:ပါဝါ)\s*[=.\-]?\s*(\d+)$/);
             if (powerMatch) {
                 const amount = parseInt(powerMatch[1]);
                 if (isNaN(amount) || amount <= 0) throw new Error("မှန်ကန်သော ပမာဏကို ထည့်ပါ။");
-                totalCalculatedAmount = 10 * amount; // 10 power numbers (16, 61, 27, 72, etc.)
-                return { totalAmount: totalCalculatedAmount, rawInput: originalLine };
+                const powerPairs = [['16', '61'], ['27', '72'], ['38', '83'], ['49', '94'], ['05', '50']];
+                powerPairs.forEach(pair => {
+                    addDetail(pair[0], amount, 'reverse_pair');
+                    addDetail(pair[1], amount, 'reverse_pair');
+                    addToTotalCalculatedAmount(amount * 2); // Each pair is 2x amount
+                });
+                return { totalAmount: totalCalculatedAmount, details, rawInput: originalLine };
             }
 
             // 2. "အပူး" / "ပူးစုံ" (doubles)
@@ -323,8 +359,12 @@
             if (doublesMatch) {
                 const amount = parseInt(doublesMatch[1]);
                 if (isNaN(amount) || amount <= 0) throw new Error("မှန်ကန်သော ပမာဏကို ထည့်ပါ။");
-                totalCalculatedAmount = 10 * amount; // 10 double numbers (00, 11, ..., 99)
-                return { totalAmount: totalCalculatedAmount, rawInput: originalLine };
+                for (let i = 0; i <= 9; i++) {
+                    const num = `${i}${i}`;
+                    addDetail(num, amount, 'exact');
+                    addToTotalCalculatedAmount(amount);
+                }
+                return { totalAmount: totalCalculatedAmount, details, rawInput: originalLine };
             }
 
             // 3. "ပါ" / "ပါတ်" (contains)
@@ -333,33 +373,65 @@
                 const digit = containsMatch[1];
                 const amount = parseInt(containsMatch[2]);
                 if (isNaN(amount) || amount <= 0) throw new Error("မှန်ကန်သော ပမာဏကို ထည့်ပါ။");
-                let count = 0;
+                
+                const addedNumbers = new Set(); // To prevent adding the same number twice (e.g., 01 and 10 for digit '1')
+
                 for (let i = 0; i <= 99; i++) {
                     const numStr = formatTwoDigits(i);
+                    const revNumStr = getReverse(numStr);
+
+                    // If numStr contains the digit
                     if (numStr.includes(digit)) {
-                        count++;
+                        if (numStr === revNumStr) { // It's a double (e.g., '11')
+                            if (!addedNumbers.has(numStr)) {
+                                addDetail(numStr, amount, 'exact');
+                                addToTotalCalculatedAmount(amount);
+                                addedNumbers.add(numStr);
+                            }
+                        } else { // Non-double
+                            if (!addedNumbers.has(numStr)) {
+                                addDetail(numStr, amount, 'reverse_pair');
+                                addToTotalCalculatedAmount(amount);
+                                addedNumbers.add(numStr);
+                            }
+                            if (revNumStr && revNumStr.includes(digit) && !addedNumbers.has(revNumStr)) {
+                                addDetail(revNumStr, amount, 'reverse_pair');
+                                addToTotalCalculatedAmount(amount);
+                                addedNumbers.add(revNumStr);
+                            }
+                        }
                     }
                 }
-                totalCalculatedAmount = count * amount;
-                return { totalAmount: totalCalculatedAmount, rawInput: originalLine };
+                if (details.length === 0) throw new Error(`နံပါတ် '${digit}' ပါဝင်သော အရောင်းစာရင်းများကို ရှာမတွေ့ပါ။`);
+                return { totalAmount: totalCalculatedAmount, details, rawInput: originalLine };
             }
 
             // 4. "ထိပ်" (starts with)
             const startsWithMatch = cleanedLine.match(/^(\d)\s*ထိပ်\s*(\d+)$/);
             if (startsWithMatch) {
+                const digit = startsWithMatch[1];
                 const amount = parseInt(startsWithMatch[2]);
                 if (isNaN(amount) || amount <= 0) throw new Error("မှန်ကန်သော ပမာဏကို ထည့်ပါ။");
-                totalCalculatedAmount = 10 * amount; // 10 numbers (e.g., 10-19)
-                return { totalAmount: totalCalculatedAmount, rawInput: originalLine };
+                for (let i = 0; i <= 9; i++) {
+                    const num = `${digit}${i}`;
+                    addDetail(num, amount, 'exact');
+                    addToTotalCalculatedAmount(amount);
+                }
+                return { totalAmount: totalCalculatedAmount, details, rawInput: originalLine };
             }
 
             // 5. "ပိတ်" (ends with)
             const endsWithMatch = cleanedLine.match(/^(\d)\s*ပိတ်\s*(\d+)$/);
             if (endsWithMatch) {
+                const digit = endsWithMatch[1];
                 const amount = parseInt(endsWithMatch[2]);
                 if (isNaN(amount) || amount <= 0) throw new Error("မှန်ကန်သော ပမာဏကို ထည့်ပါ။");
-                totalCalculatedAmount = 10 * amount;
-                return { totalAmount: totalCalculatedAmount, rawInput: originalLine };
+                for (let i = 0; i <= 9; i++) {
+                    const num = `${i}${digit}`;
+                    addDetail(num, amount, 'exact');
+                    addToTotalCalculatedAmount(amount);
+                }
+                return { totalAmount: totalCalculatedAmount, details, rawInput: originalLine };
             }
 
             // 6. "ခွေ" (combinations/permutations)
@@ -368,11 +440,10 @@
                 const digits = permuteMatch[1].split('').map(d => parseInt(d));
                 const amount = parseInt(permuteMatch[2]);
                 if (isNaN(amount) || amount <= 0) throw new Error("မှန်ကန်သော ပမာဏကို ထည့်ပါ။");
-                let count = 0;
+                const generatedNumbers = new Set();
                 if (digits.length === 1) {
-                    count = 1;
+                    generatedNumbers.add(formatTwoDigits(digits[0]));
                 } else {
-                    const generatedNumbers = new Set();
                     for (let i = 0; i < digits.length; i++) {
                         for (let j = 0; j < digits.length; j++) {
                             if (i !== j) {
@@ -380,10 +451,30 @@
                             }
                         }
                     }
-                    count = generatedNumbers.size;
                 }
-                totalCalculatedAmount = count * amount;
-                return { totalAmount: totalCalculatedAmount, rawInput: originalLine };
+                const addedNumbersInKhway = new Set();
+                generatedNumbers.forEach(numStr => {
+                    const revNumStr = getReverse(numStr);
+                    if (numStr === revNumStr) { // Double
+                        if (!addedNumbersInKhway.has(numStr)) {
+                            addDetail(numStr, amount, 'exact');
+                            addToTotalCalculatedAmount(amount);
+                            addedNumbersInKhway.add(numStr);
+                        }
+                    } else { // Non-double
+                        if (!addedNumbersInKhway.has(numStr)) {
+                            addDetail(numStr, amount, 'reverse_pair');
+                            addToTotalCalculatedAmount(amount);
+                            addedNumbersInKhway.add(numStr);
+                        }
+                        if (revNumStr && !addedNumbersInKhway.has(revNumStr)) {
+                            addDetail(revNumStr, amount, 'reverse_pair');
+                            addToTotalCalculatedAmount(amount);
+                            addedNumbersInKhway.add(revNumStr);
+                        }
+                    }
+                });
+                return { totalAmount: totalCalculatedAmount, details, rawInput: originalLine };
             }
 
             // Handle general patterns by splitting the input into segments
@@ -398,10 +489,13 @@
                     const amount2 = parseInt(reverseInLineMatch[3]);
                     if (isNaN(amount1) || amount1 <= 0 || isNaN(amount2) || amount2 <= 0) throw new Error("မှန်ကန်သော ပမာဏကို ထည့်ပါ။");
 
-                    totalCalculatedAmount += amount1;
+                    addDetail(num, amount1, 'exact');
+                    addToTotalCalculatedAmount(amount1);
+
                     const reverseNum = getReverse(num);
                     if (reverseNum) {
-                        totalCalculatedAmount += amount2;
+                        addDetail(reverseNum, amount2, 'exact');
+                        addToTotalCalculatedAmount(amount2);
                     }
                     continue;
                 }
@@ -419,17 +513,27 @@
                     for (const numPart of individualNumbers) {
                         let num = formatTwoDigits(parseInt(numPart));
                         if (numPart.length === 1) {
-                            num = `0${numPart}`;
+                            num = `0${numPart}`; // Ensure two digits
                         } else if (numPart.length !== 2) {
                              throw new Error(`နံပါတ်ပုံစံ မှားယွင်းနေပါသည်။: ${numPart}`);
                         }
-                        totalCalculatedAmount += amount;
 
                         if (separator.toLowerCase() === 'r') {
-                            const reverseNum = getReverse(num);
-                            if (reverseNum) {
-                                totalCalculatedAmount += amount;
+                            const revNum = getReverse(num);
+                            if (num === revNum) { // Double with 'R' (e.g., 11R100)
+                                addDetail(num, amount, 'exact'); // Doubles are always exact bets
+                                addToTotalCalculatedAmount(amount);
+                            } else { // Non-double with 'R' (e.g., 12R100)
+                                addDetail(num, amount, 'reverse_pair');
+                                addToTotalCalculatedAmount(amount);
+                                if (revNum) {
+                                    addDetail(revNum, amount, 'reverse_pair');
+                                    addToTotalCalculatedAmount(amount);
+                                }
                             }
+                        } else { // Separator is '='
+                            addDetail(num, amount, 'exact');
+                            addToTotalCalculatedAmount(amount);
                         }
                     }
                     continue;
@@ -438,11 +542,11 @@
                 throw new Error(`ထည့်သွင်းမှုပုံစံ မှားယွင်းနေပါသည်။: ${segment}`);
             }
 
-            if (totalCalculatedAmount === 0) {
+            if (totalCalculatedAmount === 0 && details.length === 0) {
                 throw new Error("ထည့်သွင်းမှုမှ အရောင်းစာရင်းများကို ရှာမတွေ့ပါ။");
             }
 
-            return { totalAmount: totalCalculatedAmount, rawInput: originalLine };
+            return { totalAmount: totalCalculatedAmount, details, rawInput: originalLine };
         }
 
         // Initialize Firebase and set up authentication
@@ -451,44 +555,44 @@
                 showLoading();
                 // Initialize Firebase with the provided config
                 app = initializeApp(firebaseConfig);
-                // analytics = getAnalytics(app); // Uncomment if you need analytics
                 db = getFirestore(app);
                 auth = getAuth(app);
+                analytics = getAnalytics(app); // Initialize analytics
 
-                // Determine the correct appId for Firestore collection path
-                // Using __app_id if available, otherwise fallback to firebaseConfig.projectId
-                const currentAppId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
-
-                // Check if __initial_auth_token is defined and not null before using it
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token !== null) {
-                    try {
+                // Attempt custom token sign-in, fall back to anonymous
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token !== null) {
                         await signInWithCustomToken(auth, __initial_auth_token);
-                    } catch (tokenError) {
-                        console.error("Error with custom token, signing in anonymously:", tokenError);
-                        await signInAnonymously(auth); // Fallback to anonymous sign-in if custom token fails
+                    } else {
+                        await signInAnonymously(auth);
                     }
-                } else {
-                    await signInAnonymously(auth); // Sign in anonymously if no initial token is provided
+                } catch (tokenError) {
+                    console.error("Custom token sign-in failed, attempting anonymous sign-in:", tokenError);
+                    await signInAnonymously(auth); // Ensure anonymous sign-in is attempted if custom token fails
                 }
 
+                // Set up auth state listener
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
+                        userIdDisplay.textContent = userId; // Display the user ID
                         console.log("Authenticated user ID:", userId);
-                        // Use the determined currentAppId for the collection path
+                        // Use the dynamically determined currentAppId in the collection path
                         salesCollectionRef = collection(db, `artifacts/${currentAppId}/users/${userId}/sales`);
                         updateDateDisplay(); // Initial display and fetch
                     } else {
                         userId = null;
+                        userIdDisplay.textContent = "Not authenticated"; // Indicate not authenticated
                         console.log("No user signed in.");
                         salesListElem.innerHTML = '<li class="text-center text-gray-500">အကောင့်ဝင်ရန်လိုအပ်ပါသည်။</li>';
                     }
-                    hideLoading();
+                    hideLoading(); // Hide loading after auth state is determined
                 });
+
             } catch (error) {
                 console.error("Error initializing Firebase or authenticating:", error);
                 salesListElem.innerHTML = `<li class="text-center text-red-500">ဒေတာတင်မရပါ။ (${error.message})</li>`;
-                showCustomModal(`ဒေတာတင်မရပါ။ (${error.message})`, 'alert'); // Show alert for initialization errors
+                showCustomModal(`ဒေတာတင်မရပါ။ (${error.message})`, 'alert');
                 hideLoading();
             }
         }
@@ -582,12 +686,12 @@
 
             showLoading();
 
-            let successfulParsedEntries = []; // Stores {rawInput, totalAmount} for successful lines
+            let successfulParsedEntries = []; // Stores {totalAmount, details, rawInput} for successful lines
             let failedLinesRaw = []; // Stores only the raw string of failed lines
 
             for (const line of lines) {
                 try {
-                    const parsedLine = parseSingleLineBet(line);
+                    const parsedLine = parseSingleLineBetDetailed(line); // Use the detailed parser
                     successfulParsedEntries.push(parsedLine);
                 } catch (error) {
                     failedLinesRaw.push(line);
@@ -688,7 +792,6 @@
                     showLoading();
                     try {
                         // Use the currentAppId for the collection path during deletion
-                        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
                         await deleteDoc(doc(db, `artifacts/${currentAppId}/users/${userId}/sales`, saleId));
                         showToast("အရောင်းစာရင်း ဖျက်ပြီးပါပြီ။");
                         console.log("Sale deleted successfully!");
@@ -713,21 +816,108 @@
             const sessionText = currentSession === 'morning' ? 'မနက်' : 'ညနေ';
             summaryDateElem.textContent = `${formattedDate} (${sessionText})`; // Include session in summary date
 
-            let totalSum = 0;
-            let summaryText = '';
+            // Stores NN -> { exactSum: number, reversePairSum: number }
+            // exactSum: total amount directly bet on NN (e.g., 12=100)
+            // reversePairSum: total amount where NN is one side of an R-pair (e.g., 12R100 contributes 100 here for 12)
+            let finalAggregatedDisplay = new Map(); 
+            let totalOverallSum = 0;
+            let unparsedLinesInSummary = []; // To capture lines that fail parsing during summary generation
+
+            // Initialize map for all 00-99 numbers
+            for (let i = 0; i <= 99; i++) {
+                finalAggregatedDisplay.set(formatTwoDigits(i), { exactSum: 0, reversePairSum: 0 });
+            }
 
             if (currentSalesData.length === 0) {
-                summaryText = 'ဤနေ့အတွက် အရောင်းစာရင်း မရှိသေးပါ။';
-            } else {
-                currentSalesData.forEach(sale => {
-                    summaryText += `${sale.rawInput}\n`;
-                    totalSum += sale.totalAmount;
-                });
+                summaryContentElem.textContent = 'ဤနေ့အတွက် အရောင်းစာရင်း မရှိသေးပါ။';
+                summaryTotalAmountElem.textContent = '0';
+                summaryModal.classList.remove('hidden');
+                return;
             }
-            summaryText += `Total=${totalSum.toLocaleString().replace(/,/g, '')}`; // Add total to the summary text
+
+            currentSalesData.forEach(sale => {
+                totalOverallSum += sale.totalAmount; // Sum from the stored totalAmount for accuracy
+
+                const lines = sale.rawInput.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                lines.forEach(line => {
+                    try {
+                        const parsedLine = parseSingleLineBetDetailed(line); 
+                        parsedLine.details.forEach(detail => {
+                            const num = detail.num;
+                            const amount = detail.amount;
+                            const type = detail.type; // 'exact' or 'reverse_pair'
+
+                            const currentSums = finalAggregatedDisplay.get(num);
+                            if (type === 'exact') {
+                                currentSums.exactSum += amount;
+                            } else if (type === 'reverse_pair') {
+                                currentSums.reversePairSum += amount;
+                            }
+                            finalAggregatedDisplay.set(num, currentSums);
+                        });
+                    } catch (error) {
+                        unparsedLinesInSummary.push(`[အမှား] ${line}: ${error.message}`);
+                    }
+                });
+            });
+
+            let summaryText = '';
+            const processedCanonicalPairs = new Set(); // To ensure each pair (e.g., 18/81) is processed only once
+
+            for (let i = 0; i <= 99; i++) {
+                const num = formatTwoDigits(i);
+                const revNum = getReverse(num);
+                const canonicalNum = getCanonical(num);
+
+                if (processedCanonicalPairs.has(canonicalNum)) {
+                    continue; // Skip if this pair has already been handled
+                }
+
+                const dataForNum = finalAggregatedDisplay.get(num);
+                const dataForRevNum = (num === revNum) ? { exactSum: 0, reversePairSum: 0 } : finalAggregatedDisplay.get(revNum); // For doubles, rev data is irrelevant
+
+                let line = '';
+
+                if (num === revNum) { // It's a double (e.g., 00, 11, 22)
+                    if (dataForNum.exactSum > 0 || dataForNum.reversePairSum > 0) { // Doubles should only have exactSum, but for safety
+                        line = `${num}=${(dataForNum.exactSum + dataForNum.reversePairSum).toLocaleString().replace(/,/g, '')}`;
+                    }
+                } else { // It's a non-double pair (e.g., 01/10, 18/81)
+                    const totalAmountOnNum = dataForNum.exactSum + dataForNum.reversePairSum;
+                    const totalAmountOnRevNum = dataForRevNum.exactSum + dataForRevNum.reversePairSum;
+
+                    if (totalAmountOnNum > 0 && totalAmountOnRevNum > 0) {
+                        if (totalAmountOnNum === totalAmountOnRevNum) {
+                            // If both sides have amounts and they are equal, display as NNRXXX
+                            line = `${canonicalNum}R${totalAmountOnNum.toLocaleString().replace(/,/g, '')}`;
+                        } else {
+                            // Both sides have amounts, but they are different
+                            line = `${num}=${totalAmountOnNum.toLocaleString().replace(/,/g, '')}R${totalAmountOnRevNum.toLocaleString().replace(/,/g, '')}`;
+                        }
+                    } else if (totalAmountOnNum > 0) {
+                        // Only the 'num' side has an amount
+                        line = `${num}=${totalAmountOnNum.toLocaleString().replace(/,/g, '')}`;
+                    } else if (totalAmountOnRevNum > 0) {
+                        // Only the 'revNum' side has an amount. Display using canonical number with 'R'.
+                        line = `${canonicalNum}R${totalAmountOnRevNum.toLocaleString().replace(/,/g, '')}`;
+                    }
+                }
+                
+                if (line) {
+                    summaryText += line + '\n';
+                }
+                
+                // Mark the canonical form as processed
+                processedCanonicalPairs.add(canonicalNum);
+            }
+
+            if (unparsedLinesInSummary.length > 0) {
+                summaryText += "\n--- မှားယွင်းသော စာကြောင်းများ ---\n";
+                summaryText += unparsedLinesInSummary.join('\n');
+            }
 
             summaryContentElem.textContent = summaryText;
-            summaryTotalAmountElem.textContent = totalSum.toLocaleString(); // Format with commas for readability
+            summaryTotalAmountElem.textContent = totalOverallSum.toLocaleString(); // Overall total from stored data
             summaryModal.classList.remove('hidden');
         });
 
