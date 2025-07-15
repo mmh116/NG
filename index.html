@@ -27,18 +27,22 @@
             -moz-appearance: textfield;
         }
         /* Scrollbar styling for admin view */
-        #admin-sales-list::-webkit-scrollbar {
+        #admin-sales-list::-webkit-scrollbar,
+        #all-2d-summary-list::-webkit-scrollbar {
             width: 8px;
         }
-        #admin-sales-list::-webkit-scrollbar-track {
+        #admin-sales-list::-webkit-scrollbar-track,
+        #all-2d-summary-list::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 10px;
         }
-        #admin-sales-list::-webkit-scrollbar-thumb {
+        #admin-sales-list::-webkit-scrollbar-thumb,
+        #all-2d-summary-list::-webkit-scrollbar-thumb {
             background: #888;
             border-radius: 10px;
         }
-        #admin-sales-list::-webkit-scrollbar-thumb:hover {
+        #admin-sales-list::-webkit-scrollbar-thumb:hover,
+        #all-2d-summary-list::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
         /* Style for textarea */
@@ -53,6 +57,38 @@
             width: 100%;
             box-sizing: border-box; /* Include padding and border in the element's total width and height */
         }
+        /* Style for clickable nickname cards in admin view */
+        .admin-nickname-card {
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .admin-nickname-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        /* Specific style for the 2D summary list items to match the image */
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #eee; /* Light separator */
+        }
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+        .summary-number {
+            font-weight: bold;
+            color: #374151; /* Darker gray for number */
+            width: 30%; /* Adjust width as needed */
+            text-align: left;
+        }
+        .summary-amount {
+            color: #1d4ed8; /* Blue for amount */
+            font-weight: bold;
+            width: 70%; /* Adjust width as needed */
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -60,57 +96,111 @@
         <!-- Message Box for notifications (instead of alert) -->
         <div id="message-box" class="hidden fixed top-0 left-0 right-0 bg-red-500 text-white text-center py-2 z-50 text-sm font-medium"></div>
 
-        <!-- Header Section: Date Navigation, Nickname, Admin View Button -->
-        <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 shadow-md flex justify-between items-center rounded-b-lg">
-            <!-- Date Navigation -->
-            <div class="flex items-center space-x-2">
-                <button id="prev-date-btn" class="p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 transition duration-300 ease-in-out transform hover:scale-105">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                </button>
-                <span id="current-date" class="text-sm font-semibold"></span>
-                <button id="next-date-btn" class="p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 transition duration-300 ease-in-out transform hover:scale-105">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                </button>
-            </div>
+        <!-- Main Application View -->
+        <div id="main-app-view" class="flex flex-col flex-1">
+            <!-- Header Section: Date Navigation, Nickname, Admin View Button -->
+            <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 shadow-md flex justify-between items-center rounded-b-lg">
+                <!-- Date Navigation -->
+                <div class="flex items-center space-x-2">
+                    <button id="prev-date-btn" class="p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 transition duration-300 ease-in-out transform hover:scale-105">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <span id="current-date" class="text-sm font-semibold"></span>
+                    <button id="next-date-btn" class="p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 transition duration-300 ease-in-out transform hover:scale-105">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
 
-            <!-- Nickname Display & Button, Admin View Button -->
-            <div class="flex items-center space-x-3">
-                <span id="current-nickname" class="text-sm font-medium">အမည်မသိ</span>
-                <button id="nickname-circle-btn" class="w-8 h-8 rounded-full bg-white bg-opacity-30 hover:bg-opacity-40 flex items-center justify-center text-white text-sm font-bold shadow-md transition duration-300 ease-in-out transform hover:scale-105">
-                    N
-                </button>
-                <button id="admin-view-button" class="hidden px-3 py-1 bg-yellow-400 text-yellow-900 text-sm font-semibold rounded-full shadow-md hover:bg-yellow-300 transition duration-300 ease-in-out transform hover:scale-105">
-                    Admin View
-                </button>
-            </div>
-        </header>
+                <!-- Nickname Display & Button, Admin View Button -->
+                <div class="flex items-center space-x-3">
+                    <span id="current-nickname" class="text-sm font-medium">အမည်မသိ</span>
+                    <button id="nickname-circle-btn" class="w-8 h-8 rounded-full bg-white bg-opacity-30 hover:bg-opacity-40 flex items-center justify-center text-white text-sm font-bold shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                        N
+                    </button>
+                    <button id="admin-view-button" class="hidden px-3 py-1 bg-yellow-400 text-yellow-900 text-sm font-semibold rounded-full shadow-md hover:bg-yellow-300 transition duration-300 ease-in-out transform hover:scale-105">
+                        Admin View
+                    </button>
+                </div>
+            </header>
 
-        <!-- Main Content Area: Sales List -->
-        <main class="flex-1 p-4 overflow-y-auto pb-20"> <!-- pb-20 adds space for the fixed footer -->
-            <!-- Removed "ယနေ့ အရောင်းစာရင်း" heading -->
-            <div id="sales-list" class="space-y-3">
-                <!-- Sales entries will be loaded here dynamically by JavaScript -->
-                <p class="text-center text-gray-500">အရောင်းစာရင်းများ မရှိသေးပါ။</p>
-            </div>
-            <!-- Daily Total Display -->
-            <div class="mt-6 p-4 bg-blue-100 rounded-lg shadow-inner flex justify-between items-center">
-                <!-- Removed "နေ့စဉ် စုစုပေါင်း:" text -->
-                <span id="daily-total" class="text-xl font-bold text-blue-900">0</span>
-                <span class="text-md font-semibold text-blue-800">ကျပ်</span>
-            </div>
-        </main>
+            <!-- Main Content Area: Sales List -->
+            <main class="flex-1 p-4 overflow-y-auto pb-20"> <!-- pb-20 adds space for the fixed footer -->
+                <div id="sales-list" class="space-y-3">
+                    <!-- Sales entries will be loaded here dynamically by JavaScript -->
+                    <p class="text-center text-gray-500">အရောင်းစာရင်းများ မရှိသေးပါ။</p>
+                </div>
+                <!-- Daily Total Display -->
+                <div class="mt-6 p-4 bg-blue-100 rounded-lg shadow-inner flex justify-between items-center">
+                    <span id="daily-total" class="text-xl font-bold text-blue-900">0</span>
+                </div>
+            </main>
 
-        <!-- Footer Section: Bet Amount Input and Add Button -->
-        <footer class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg border-t border-gray-200">
-            <div class="flex items-center space-x-3">
-                <!-- Changed input to textarea to allow multi-line input -->
-                <textarea id="bet-amount-input" placeholder="ထိုးကြေးထည့်ပါ" rows="2" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"></textarea>
-                <button id="add-bet-button" class="w-12 h-12 rounded-full bg-green-500 text-white text-3xl font-bold flex items-center justify-center shadow-lg hover:bg-green-600 transition duration-300 ease-in-out transform hover:scale-105">
-                    +
-                </button>
-            </div>
-            <div class="h-8"></div> <!-- Provides two lines of empty space below the input -->
-        </footer>
+            <!-- Footer Section: Bet Amount Input and Add Button -->
+            <footer class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg border-t border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <!-- Changed input to textarea to allow multi-line input -->
+                    <textarea id="bet-amount-input" placeholder="ထိုးကြေးထည့်ပါ" rows="2" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"></textarea>
+                    <button id="add-bet-button" class="w-12 h-12 rounded-full bg-green-500 text-white text-3xl font-bold flex items-center justify-center shadow-lg hover:bg-green-600 transition duration-300 ease-in-out transform hover:scale-105">
+                        +
+                    </button>
+                </div>
+                <div class="h-8"></div> <!-- Provides two lines of empty space below the input -->
+            </footer>
+        </div>
+
+        <!-- Admin Application View (initially hidden) -->
+        <div id="admin-app-view" class="hidden flex flex-col flex-1">
+            <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 shadow-md flex justify-between items-center rounded-b-lg">
+                <div class="flex items-center justify-between w-full">
+                    <div class="flex items-center space-x-2">
+                        <h3 id="admin-view-title" class="text-lg font-bold text-white">Admin View - Nicknames</h3>
+                        <!-- Session Selector -->
+                        <div class="flex items-center space-x-2 bg-white bg-opacity-20 p-1 rounded-full">
+                            <label for="session-morning" class="cursor-pointer text-sm font-semibold px-2 py-1 rounded-full text-white has-[:checked]:bg-blue-600 has-[:checked]:text-white transition duration-200">
+                                <input type="radio" id="session-morning" name="session-selector" value="morning" class="hidden" checked> မနက်
+                            </label>
+                            <label for="session-evening" class="cursor-pointer text-sm font-semibold px-2 py-1 rounded-full text-white has-[:checked]:bg-blue-600 has-[:checked]:text-white transition duration-200">
+                                <input type="radio" id="session-evening" name="session-selector" value="evening" class="hidden"> ညနေ
+                            </label>
+                        </div>
+                        <!-- 2D Summary button always visible in admin header -->
+                        <button id="show-all-2d-summary-btn" class="px-3 py-1 bg-blue-400 text-blue-900 text-sm font-semibold rounded-full shadow-md hover:bg-blue-300 transition duration-300 ease-in-out transform hover:scale-105">
+                            2D စုစုပေါင်း
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <!-- Removed Clear Data Button -->
+                        <button id="toggle-session-lock-btn" class="px-3 py-1 bg-gray-400 text-gray-900 text-sm font-semibold rounded-full shadow-md hover:bg-gray-300 transition duration-300 ease-in-out transform hover:scale-105">
+                            ပိတ်မည်/ဖွင့်မည်
+                        </button>
+                        <button id="close-admin-app-view-btn" class="p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 transition duration-300 ease-in-out transform hover:scale-105">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            <main class="flex-1 p-4 overflow-y-auto space-y-3">
+                <div id="admin-sales-list">
+                    <!-- Nicknames or detailed sales data will be loaded here -->
+                    <p class="text-center text-gray-500">ဒေတာများ တင်နေသည်...</p>
+                </div>
+                <div id="all-2d-summary-list" class="hidden bg-white p-4 rounded-lg shadow-md">
+                    <!-- Consolidated 2D summary will be loaded here -->
+                    <h4 class="text-lg font-bold mb-4 text-gray-800">စုစုပေါင်း: ဂဏန်းစာရင်း (100)ကွက်</h4>
+                    <div id="2d-summary-content" class="space-y-1 text-sm">
+                        <p class="text-center text-gray-500">2D စုစုပေါင်း ဒေတာများ တင်နေသည်...</p>
+                    </div>
+                    <div class="mt-6 p-4 bg-blue-100 rounded-lg shadow-inner flex justify-between items-center">
+                        <span class="text-xl font-bold text-blue-900">Total=</span>
+                        <span id="2d-summary-grand-total" class="text-xl font-bold text-blue-900">0</span>
+                    </div>
+                    <div class="mt-4 flex justify-center">
+                        <button id="copy-2d-summary-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm shadow-md">ကူးယူမည်</button>
+                    </div>
+                </div>
+                <button id="back-to-nicknames-btn" class="hidden mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm self-end">နောက်သို့</button>
+            </main>
+        </div>
 
         <!-- Nickname Modal -->
         <div id="nickname-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
@@ -123,34 +213,18 @@
                 </div>
             </div>
         </div>
-
-        <!-- Admin View Modal -->
-        <div id="admin-view-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-3xl h-5/6 flex flex-col">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">Admin View - အရောင်းစာရင်းများ</h3>
-                    <button id="close-admin-view-modal" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
-                </div>
-                <div id="admin-sales-list" class="flex-1 overflow-y-auto pr-2">
-                    <!-- All sales data for admin will be loaded here -->
-                    <p class="text-center text-gray-500">ဒေတာများ တင်နေသည်...</p>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
-        // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, deleteDoc, onSnapshot, collection, query, where, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        // import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js"; // Optional, if you want to use Analytics
+        import { getFirestore, doc, getDoc, addDoc, setDoc, deleteDoc, onSnapshot, collection, query, where, Timestamp, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =====================================================================
-        // Firebase Configuration
+        // Firebase Configuration (for GitHub Hosting)
         // =====================================================================
-        // Your web app's Firebase configuration
+        // Replace the placeholder values below with your actual Firebase project configuration.
         const firebaseConfig = {
             apiKey: "AIzaSyDUf0QF4GqMb6s9ODTUiX7aTHRTR0YUqcE",
             authDomain: "html-3ce83.firebaseapp.com",
@@ -162,19 +236,404 @@
             measurementId: "G-44BG2J1XQ3"
         };
 
-        // For GitHub, we will use the projectId from your config as the appId for Firestore paths.
-        const appId = firebaseConfig.projectId;
+        const appId = firebaseConfig.projectId; // Using projectId as appId for consistency
 
-        // Initialize Firebase
         let app;
         let db;
         let auth;
-        // let analytics; // Uncomment if you use analytics
-
         let currentUserId = null;
-        let currentUserNickname = 'အမည်မသိ'; // Default nickname before loading
+        let currentUserNickname = 'အမည်မသိ';
         let isAdmin = false;
-        let unsubscribeSales = null; // To store the unsubscribe function for sales data listener
+        let unsubscribeSales = null;
+        let allSalesData = {}; // Store all sales data for admin view
+        let currentSession = 'morning'; // Default session
+
+        // Regex for common delimiters in number sequences
+        const delimiters = '[./#$\\-@]'; // . / # $ - @
+
+        // =====================================================================
+        // Helper Functions for 2D Number Generation
+        // =====================================================================
+
+        /**
+         * Generates all 2-digit permutations from a given set of digits.
+         * @param {string[]} digits - An array of single digits (e.g., ['1', '2', '3']).
+         * @returns {string[]} An array of unique 2-digit strings (e.g., ['12', '21', '13', '31', '23', '32']).
+         */
+        function generateKhwePairs(digits) {
+            const pairs = new Set();
+            for (let i = 0; i < digits.length; i++) {
+                for (let j = 0; j < digits.length; j++) {
+                    if (i !== j) { // Ensure distinct digits for permutation
+                        pairs.add(digits[i] + digits[j]);
+                    }
+                }
+            }
+            return Array.from(pairs).sort();
+        }
+
+        /**
+         * Generates 'ညီကို' pairs for a given digit.
+         * 0-1, 1-2, 2-3, 3-4, 4-5, 5-6, 6-7, 7-8, 8-9, 9-0 and their reverses.
+         * This function returns all 10 'ညီကို' pairs regardless of the input digit, as per common 2D rules.
+         * @returns {string[]} An array of 2-digit 'ညီကို' strings (e.g., ['01', '10', '12', '21', ...]).
+         */
+        function generateNyiKoPairs() {
+            const pairs = new Set();
+            const nyiKoRelations = {
+                '0': '1', '1': '2', '2': '3', '3': '4', '4': '5',
+                '5': '6', '6': '7', '7': '8', '8': '9', '9': '0'
+            };
+            for (let i = 0; i < 10; i++) {
+                const d1 = String(i);
+                const d2 = nyiKoRelations[d1];
+                pairs.add(d1 + d2);
+                pairs.add(d2 + d1);
+            }
+            return Array.from(pairs).sort();
+        }
+
+        /**
+         * Generates 'ကိုညီ' pairs. This is the reverse concept of 'ညီကို',
+         * and typically refers to the same set of 10 pairs.
+         * @returns {string[]} An array of 2-digit 'ကိုညီ' strings.
+         */
+        function generateKoNyiPairs() {
+            return generateNyiKoPairs(); // Same set of pairs as nyi-ko
+        }
+
+        /**
+         * Generates 'ထိပ်' pairs for a given digit (0-9) or two digits (e.g., '12').
+         * If '1ထိပ်', it's 10, 11, ..., 19.
+         * If '12ထိပ်', it's 10-19 and 20-29 (20 numbers).
+         * @param {string} digits - Single digit (0-9) or two digits (e.g., '12').
+         * @returns {string[]} An array of 2-digit 'ထိပ်' strings.
+         */
+        function generateTopPairs(digits) {
+            const pairs = new Set();
+            if (digits.length === 1) {
+                const digit = digits[0];
+                for (let i = 0; i < 10; i++) {
+                    pairs.add(digit + String(i));
+                }
+            } else if (digits.length === 2) {
+                const digit1 = digits[0];
+                const digit2 = digits[1];
+                for (let i = 0; i < 10; i++) {
+                    pairs.add(digit1 + String(i));
+                    pairs.add(digit2 + String(i));
+                }
+            }
+            return Array.from(pairs).sort();
+        }
+
+        /**
+         * Generates 'ပါဝါ' pairs.
+         * Power pairs: (0,5), (1,6), (2,7), (3,8), (4,9) and their reverses.
+         * This function returns all 10 'ပါဝါ' pairs regardless of the input digit, as per common 2D rules.
+         * @returns {string[]} An array of 2-digit 'ပါဝါ' strings.
+         */
+        function generatePowerPairs() {
+            const powerMap = {
+                '0': '5', '1': '6', '2': '7', '3': '8', '4': '9'
+            };
+            const pairs = new Set();
+            for (let i = 0; i <= 4; i++) {
+                const d1 = String(i);
+                const d2 = powerMap[d1];
+                pairs.add(d1 + d2);
+                pairs.add(d2 + d1);
+            }
+            return Array.from(pairs).sort();
+        }
+
+        /**
+         * Generates 'နက္ခတ်' pairs.
+         * Nakkhata pairs: (0,7), (1,8), (2,9), (3,6), (4,5) and their reverses.
+         * This function returns all 10 'နက္ခတ်' pairs regardless of the input digit, as per common 2D rules.
+         * @returns {string[]} An array of 2-digit 'နက္ခတ်' strings.
+         */
+        function generateNakkhataPairs() {
+            const nakkhataMap = {
+                '0': '7', '1': '8', '2': '9', '3': '6', '4': '5'
+            };
+            const pairs = new Set();
+            for (let i = 0; i <= 4; i++) {
+                const d1 = String(i);
+                const d2 = nakkhataMap[d1];
+                pairs.add(d1 + d2);
+                pairs.add(d2 + d1);
+            }
+            return Array.from(pairs).sort();
+        }
+
+        /**
+         * Generates 'ပါ' pairs for a given digit.
+         * 'XပါY' means all numbers containing 'X' (e.g., 0X, X0, X1, ..., X9, 1X, 2X, ..., 9X).
+         * This results in 19 unique numbers.
+         * @param {string} digit - A single digit (0-9).
+         * @returns {string[]} An array of 2-digit 'ပါ' strings (19 numbers).
+         */
+        function generatePaPairs(digit) {
+            const pairs = new Set();
+            for (let i = 0; i < 10; i++) {
+                pairs.add(digit + String(i)); // e.g., 10, 11, ..., 19
+                if (digit !== String(i)) {
+                    pairs.add(String(i) + digit); // e.g., 01, 21, ..., 91
+                }
+            }
+            return Array.from(pairs).sort();
+        }
+
+        // =====================================================================
+        // Core Parsing and Summation Logic
+        // =====================================================================
+
+        /**
+         * Parses a bet amount string and returns its total numerical value.
+         * This function is used for overall totals (daily, nickname, grand total).
+         * @param {string|number} betValue - The raw bet amount string or number.
+         * @returns {number} The calculated total numerical value of the bet.
+         */
+        function parseBetAmount(betValue) {
+            if (typeof betValue === 'number') {
+                return betValue;
+            }
+            if (typeof betValue !== 'string') {
+                return 0;
+            }
+
+            const trimmedValue = betValue.trim();
+
+            // Case 1: Multiple pairs with R/r (e.g., "12.13.45.19R100", "12/13/58r100", etc.)
+            const multiRMatch = trimmedValue.match(new RegExp(`^(\\d{2}(?:${delimiters}\\d{2})*)[Rr](\\d+)$`));
+            if (multiRMatch) {
+                const numbersPart = multiRMatch[1];
+                const amount = parseFloat(multiRMatch[2]);
+                const count = numbersPart.split(new RegExp(delimiters)).length;
+                return amount * count * 2;
+            }
+
+            // Case 2: Multiple pairs with = (e.g., "12.13.45.19=100", "12/13/58=100", etc.)
+            const multiEqualMatch = trimmedValue.match(new RegExp(`^(\\d{2}(?:${delimiters}\\d{2})*)=(\\d+)$`));
+            if (multiEqualMatch) {
+                const numbersPart = multiEqualMatch[1];
+                const amount = parseFloat(multiEqualMatch[2]);
+                const count = numbersPart.split(new RegExp(delimiters)).length;
+                return amount * count;
+            }
+
+            // Case 3: XခွေY (e.g., "1234ခွေ100")
+            const khweMatch = trimmedValue.match(/^(\d+)ခွေ(\d+)$/);
+            if (khweMatch) {
+                const digits = khweMatch[1].split('');
+                const amount = parseFloat(khweMatch[2]);
+                const numDigits = digits.length;
+                if (numDigits >= 2) {
+                    return amount * (numDigits * (numDigits - 1));
+                }
+            }
+
+            // Case 4: XညီကိုY (e.g., "1ညီကို100")
+            const nyiKoMatch = trimmedValue.match(/^(\d)ညီကို(\d+)$/);
+            if (nyiKoMatch) {
+                const amount = parseFloat(nyiKoMatch[2]);
+                return amount * 10;
+            }
+
+            // Case 5: XကိုညီY (e.g., "1ကိုညီ100")
+            const koNyiMatch = trimmedValue.match(/^(\d)ကိုညီ(\d+)$/);
+            if (koNyiMatch) {
+                const amount = parseFloat(koNyiMatch[2]);
+                return amount * 10;
+            }
+
+            // Case 6: XXထိပ်Y (e.g., "12ထိပ်100") - two digits
+            const twoDigitTopMatch = trimmedValue.match(/^(\d{2})ထိပ်(\d+)$/);
+            if (twoDigitTopMatch) {
+                const amount = parseFloat(twoDigitTopMatch[2]);
+                return amount * 20;
+            }
+
+            // Case 7: Xထိပ်Y (e.g., "1ထိပ်100") - single digit
+            const singleDigitTopMatch = trimmedValue.match(/^(\d)ထိပ်(\d+)$/);
+            if (singleDigitTopMatch) {
+                const amount = parseFloat(singleDigitTopMatch[2]);
+                return amount * 10;
+            }
+            
+            // Case 8: XပါဝါY (e.g., "1ပါဝါ100")
+            const powerMatch = trimmedValue.match(/^(\d)ပါဝါ(\d+)$/);
+            if (powerMatch) {
+                const amount = parseFloat(powerMatch[2]);
+                return amount * 10;
+            }
+
+            // Case 9: Xနက္ခတ်Y (e.g., "1နက္ခတ်100")
+            const nakkhataMatch = trimmedValue.match(/^(\d)နက္ခတ်(\d+)$/);
+            if (nakkhataMatch) {
+                const amount = parseFloat(nakkhataMatch[2]);
+                return amount * 10;
+            }
+
+            // Case 10: XပါY (e.g., "1ပါ100")
+            const paMatch = trimmedValue.match(/^(\d)ပါ(\d+)$/);
+            if (paMatch) {
+                const amount = parseFloat(paMatch[2]);
+                return amount * 19;
+            }
+
+            // Case 11: Pure numeric string (e.g., "500", "1000.5")
+            const numericMatch = /^\d+(\.\d+)?$/.test(trimmedValue);
+            if (numericMatch) {
+                return parseFloat(trimmedValue);
+            }
+
+            return 0;
+        }
+
+        /**
+         * Parses a bet amount string and returns a detailed breakdown of 2D numbers and their individual amounts.
+         * This function is used for the 00-99 consolidated summary.
+         * @param {string} betValue - The raw bet amount string.
+         * @returns {Array<{number: string, amount: number}>} An array of objects, each containing a 2D number and its corresponding amount.
+         */
+        function getDetailedBetAmounts(betValue) {
+            const results = [];
+            if (typeof betValue !== 'string') {
+                return results;
+            }
+
+            const trimmedValue = betValue.trim();
+
+            // Case 1: Multiple pairs with R/r (e.g., "12.13.45.19R100", "12/13/58r100", etc.)
+            const multiRMatch = trimmedValue.match(new RegExp(`^(\\d{2}(?:${delimiters}\\d{2})*)[Rr](\\d+)$`));
+            if (multiRMatch) {
+                const numbersPart = multiRMatch[1];
+                const amountPerPair = parseFloat(multiRMatch[2]);
+                const pairs = numbersPart.split(new RegExp(delimiters));
+                pairs.forEach(pair => {
+                    if (pair.length === 2) {
+                        results.push({ number: pair, amount: amountPerPair });
+                        const reversedPair = pair[1] + pair[0];
+                        if (pair !== reversedPair) { // Only add if not a double digit (e.g., 11R100 -> 11 is not reversed)
+                            results.push({ number: reversedPair, amount: amountPerPair });
+                        }
+                    }
+                });
+                return results;
+            }
+
+            // Case 2: Multiple pairs with = (e.g., "12.13.45.19=100", "12/13/58=100", etc.)
+            const multiEqualMatch = trimmedValue.match(new RegExp(`^(\\d{2}(?:${delimiters}\\d{2})*)=(\\d+)$`));
+            if (multiEqualMatch) {
+                const numbersPart = multiEqualMatch[1];
+                const amountPerPair = parseFloat(multiEqualMatch[2]);
+                const pairs = numbersPart.split(new RegExp(delimiters));
+                pairs.forEach(pair => {
+                    if (pair.length === 2) {
+                        results.push({ number: pair, amount: amountPerPair });
+                    }
+                });
+                return results;
+            }
+
+            // Case 3: XခွေY (e.g., "1234ခွေ100")
+            const khweMatch = trimmedValue.match(/^(\d+)ခွေ(\d+)$/);
+            if (khweMatch) {
+                const digits = khweMatch[1].split('');
+                const amountPerPair = parseFloat(khweMatch[2]);
+                const generatedPairs = generateKhwePairs(digits);
+                generatedPairs.forEach(pair => {
+                    results.push({ number: pair, amount: amountPerPair });
+                });
+                return results;
+            }
+
+            // Case 4: XညီကိုY (e.g., "1ညီကို100")
+            const nyiKoMatch = trimmedValue.match(/^(\d)ညီကို(\d+)$/);
+            if (nyiKoMatch) {
+                const amountPerPair = parseFloat(nyiKoMatch[2]);
+                const generatedPairs = generateNyiKoPairs();
+                generatedPairs.forEach(pair => {
+                    results.push({ number: pair, amount: amountPerPair });
+                });
+                return results;
+            }
+
+            // Case 5: XကိုညီY (e.g., "1ကိုညီ100")
+            const koNyiMatch = trimmedValue.match(/^(\d)ကိုညီ(\d+)$/);
+            if (koNyiMatch) {
+                const amountPerPair = parseFloat(koNyiMatch[2]);
+                const generatedPairs = generateKoNyiPairs();
+                generatedPairs.forEach(pair => {
+                    results.push({ number: pair, amount: amountPerPair });
+                });
+                return results;
+            }
+
+            // Case 6: XXထိပ်Y (e.g., "12ထိပ်100") - two digits
+            const twoDigitTopMatch = trimmedValue.match(/^(\d{2})ထိပ်(\d+)$/);
+            if (twoDigitTopMatch) {
+                const digits = twoDigitTopMatch[1];
+                const amountPerPair = parseFloat(twoDigitTopMatch[2]);
+                const generatedPairs = generateTopPairs(digits);
+                generatedPairs.forEach(pair => {
+                    results.push({ number: pair, amount: amountPerPair });
+                });
+                return results;
+            }
+
+            // Case 7: Xထိပ်Y (e.g., "1ထိပ်100") - single digit
+            const singleDigitTopMatch = trimmedValue.match(/^(\d)ထိပ်(\d+)$/);
+            if (singleDigitTopMatch) {
+                const digit = singleDigitTopMatch[1];
+                const amountPerPair = parseFloat(singleDigitTopMatch[2]);
+                const generatedPairs = generateTopPairs(digit);
+                generatedPairs.forEach(pair => {
+                    results.push({ number: pair, amount: amountPerPair });
+                });
+                return results;
+            }
+            
+            // Case 8: XပါဝါY (e.g., "1ပါဝါ100")
+            const powerMatch = trimmedValue.match(/^(\d)ပါဝါ(\d+)$/);
+            if (powerMatch) {
+                const amountPerPair = parseFloat(powerMatch[2]);
+                const generatedPairs = generatePowerPairs();
+                generatedPairs.forEach(pair => {
+                    results.push({ number: pair, amount: amountPerPair });
+                });
+                return results;
+            }
+
+            // Case 9: Xနက္ခတ်Y (e.g., "1နက္ခတ်100")
+            const nakkhataMatch = trimmedValue.match(/^(\d)နက္ခတ်(\d+)$/);
+            if (nakkhataMatch) {
+                const amountPerPair = parseFloat(nakkhataMatch[2]);
+                const generatedPairs = generateNakkhataPairs();
+                generatedPairs.forEach(pair => {
+                    results.push({ number: pair, amount: amountPerPair });
+                });
+                return results;
+            }
+
+            // Case 10: XပါY (e.g., "1ပါ100")
+            const paMatch = trimmedValue.match(/^(\d)ပါ(\d+)$/);
+            if (paMatch) {
+                const digit = paMatch[1];
+                const amountPerPair = parseFloat(paMatch[2]);
+                const generatedPairs = generatePaPairs(digit);
+                generatedPairs.forEach(pair => {
+                    results.push({ number: pair, amount: amountPerPair });
+                });
+                return results;
+            }
+
+            // For pure numeric strings or unhandled patterns, return empty array
+            return results;
+        }
+
 
         /**
          * Initializes Firebase application, authentication, and Firestore.
@@ -185,20 +644,15 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                // analytics = getAnalytics(app); // Uncomment if you use analytics
 
-                // For GitHub hosting, we sign in anonymously as there's no custom token.
-                // If you need persistent user accounts (e.g., email/password), you'll need
-                // to implement those authentication flows.
                 await signInAnonymously(auth);
 
-                // Listen for authentication state changes
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentUserId = user.uid;
                         console.log('Authenticated with UID:', currentUserId);
-                        await loadUserProfile(); // Load user profile after authentication
-                        updateDateDisplay(); // Update date and setup sales listener
+                        await loadUserProfile();
+                        updateDateDisplay(); // This will now also update session status
                     } else {
                         console.log('User signed out or not authenticated.');
                         currentUserId = null;
@@ -206,11 +660,10 @@
                         isAdmin = false;
                         document.getElementById('current-nickname').textContent = currentUserNickname;
                         document.getElementById('admin-view-button').classList.add('hidden');
-                        // Clear sales list if no user
                         document.getElementById('sales-list').innerHTML = '<p class="text-center text-gray-500">အရောင်းစာရင်းများ မရှိသေးပါ။</p>';
                         document.getElementById('daily-total').textContent = '0';
                         if (unsubscribeSales) {
-                            unsubscribeSales(); // Unsubscribe if user logs out
+                            unsubscribeSales();
                             unsubscribeSales = null;
                         }
                     }
@@ -227,21 +680,16 @@
          */
         async function loadUserProfile() {
             if (!currentUserId) return;
-            // Note: For GitHub, the collection path uses the 'appId' defined above.
-            // Ensure your Firestore Security Rules allow read/write for this path:
-            // match /artifacts/{appId}/users/{userId}/profile/data {
-            //   allow read, write: if request.auth != null && request.auth.uid == userId;
-            // }
             const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/profile/data`);
             try {
                 const docSnap = await getDoc(userProfileRef);
                 if (docSnap.exists()) {
                     const profileData = docSnap.data();
                     currentUserNickname = profileData.nickname || 'အမည်မသိ';
-                    isAdmin = profileData.nickname === 'MMHMMA556551'; // Check for admin nickname
+                    isAdmin = profileData.nickname === 'MMHMMA556551';
                     document.getElementById('current-nickname').textContent = currentUserNickname;
                     document.getElementById('nickname-input-field').value = currentUserNickname;
-                    document.getElementById('nickname-input-field').disabled = true; // Disable if nickname already set
+                    document.getElementById('nickname-input-field').disabled = true;
                     document.getElementById('set-nickname-button').disabled = true;
                     if (isAdmin) {
                         document.getElementById('admin-view-button').classList.remove('hidden');
@@ -249,7 +697,6 @@
                         document.getElementById('admin-view-button').classList.add('hidden');
                     }
                 } else {
-                    // No profile yet, allow setting nickname
                     document.getElementById('current-nickname').textContent = 'အမည်မသိ';
                     document.getElementById('nickname-input-field').value = '';
                     document.getElementById('nickname-input-field').disabled = false;
@@ -298,7 +745,7 @@
                 }
                 displayMessage("Nickname အောင်မြင်စွာ သတ်မှတ်ပြီးပါပြီ။");
                 closeModal('nickname-modal');
-                updateDateDisplay(); // Re-trigger sales listener with potentially new nickname
+                updateDateDisplay();
             } catch (error) {
                 console.error("Error setting nickname:", error);
                 displayMessage("Nickname သတ်မှတ်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
@@ -306,7 +753,7 @@
         }
 
         // Date management
-        let currentDate = new Date(); // Stores the currently displayed date
+        let currentDate = new Date();
 
         /**
          * Formats a Date object into a YYYY-MM-DD string.
@@ -322,11 +769,15 @@
 
         /**
          * Updates the displayed date and triggers loading of sales entries for the new date.
+         * Also updates session lock status for the current user.
          */
-        function updateDateDisplay() {
+        async function updateDateDisplay() {
             document.getElementById('current-date').textContent = formatDate(currentDate);
             if (currentUserId) {
-                setupSalesListener(); // Setup or re-setup Firestore listener for the new date
+                setupSalesListener();
+                if (isAdmin) {
+                    await updateSessionUI(); // Update admin session lock UI
+                }
             }
         }
 
@@ -341,7 +792,7 @@
 
         /**
          * Adds a new sales entry to Firestore.
-         * Requires user to be authenticated and have a nickname set.
+         * Requires user to be authenticated, have a nickname set, and the session not to be locked.
          */
         async function addSalesEntry() {
             if (!currentUserId) {
@@ -350,53 +801,44 @@
             }
             if (currentUserNickname === 'အမည်မသိ') {
                 displayMessage("အရောင်းစာရင်းထည့်ရန် Nickname သတ်မှတ်ပါ။");
-                openModal('nickname-modal'); // Prompt user to set nickname
+                openModal('nickname-modal');
+                return;
+            }
+
+            // Check if the current session is locked
+            const sessionDocRef = doc(db, `artifacts/${appId}/public/data/sessionStatus`, `${formatDate(currentDate)}_${currentSession}`);
+            try {
+                const sessionSnap = await getDoc(sessionDocRef);
+                if (sessionSnap.exists() && sessionSnap.data().locked) {
+                    displayMessage(`လက်ရှိ ${currentSession === 'morning' ? 'မနက်' : 'ညနေ'} ပွဲချိန်ကို ပိတ်ထားပါသည်။ ထိုးမရပါ။`);
+                    return;
+                }
+            } catch (error) {
+                console.error("Error checking session lock status:", error);
+                displayMessage("ပွဲချိန်အခြေအနေ စစ်ဆေးရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
                 return;
             }
 
             const amountInput = document.getElementById('bet-amount-input');
-            const inputValue = amountInput.value.trim(); // Get input as string
+            const inputValue = amountInput.value.trim();
 
-            if (!inputValue) { // Ensure input is not empty
+            if (!inputValue) {
                 displayMessage("ထိုးကြေးထည့်ပါ။");
                 return;
-            }
-
-            let salesAmount;
-            // Check if the input contains any non-numeric characters (excluding decimal point)
-            // This regex checks if the string contains anything other than digits and a single dot.
-            const containsNonNumericChars = /[^0-9.]/.test(inputValue);
-            const isPurelyNumeric = /^\d+(\.\d+)?$/.test(inputValue);
-
-            if (isPurelyNumeric && !containsNonNumericChars) {
-                // If purely numeric, parse as a float and store as a number
-                const parsedAmount = parseFloat(inputValue);
-                if (parsedAmount <= 0) {
-                    displayMessage("မှန်ကန်သော ထိုးကြေးပမာဏ ထည့်ပါ။");
-                    return;
-                }
-                salesAmount = parsedAmount;
-            } else {
-                // If it contains non-numeric characters (like '=', 'R', or newlines), store as a string
-                salesAmount = inputValue;
             }
 
             const salesData = {
                 userId: currentUserId,
                 nickname: currentUserNickname,
                 date: formatDate(currentDate),
-                amount: salesAmount, // Will be number or string
-                timestamp: Timestamp.now() // Use Firestore Timestamp for consistent time
+                session: currentSession, // Add session to sales data
+                amount: inputValue,
+                timestamp: Timestamp.now()
             };
 
             try {
-                // Add sales entry to the public collection
-                // Ensure your Firestore Security Rules allow read/write for this path:
-                // match /artifacts/{appId}/public/data/salesEntries/{documentId} {
-                //   allow read, write: if request.auth != null;
-                // }
                 await addDoc(collection(db, `artifacts/${appId}/public/data/salesEntries`), salesData);
-                amountInput.value = ''; // Clear input field
+                amountInput.value = '';
                 displayMessage("အရောင်းစာရင်း ထည့်ပြီးပါပြီ။");
             } catch (error) {
                 console.error("Error adding sales entry:", error);
@@ -405,30 +847,28 @@
         }
 
         /**
-         * Sets up a real-time listener for sales entries specific to the current user and selected date.
+         * Sets up a real-time listener for sales entries specific to the current user, selected date, and session.
          * Updates the sales list and daily total in the UI.
          * Unsubscribes from previous listeners to prevent duplicates.
          */
         function setupSalesListener() {
             if (!currentUserId) return;
 
-            // Unsubscribe from previous listener if it exists
             if (unsubscribeSales) {
                 unsubscribeSales();
                 unsubscribeSales = null;
             }
 
             const salesList = document.getElementById('sales-list');
-            // Query for sales entries belonging to the current user and current date
             const q = query(
                 collection(db, `artifacts/${appId}/public/data/salesEntries`),
                 where("userId", "==", currentUserId),
-                where("date", "==", formatDate(currentDate))
+                where("date", "==", formatDate(currentDate)),
+                where("session", "==", currentSession) // Filter by session
             );
 
-            // Set up the real-time listener
             unsubscribeSales = onSnapshot(q, (snapshot) => {
-                salesList.innerHTML = ''; // Clear previous entries
+                salesList.innerHTML = '';
                 let totalAmount = 0;
                 if (snapshot.empty) {
                     salesList.innerHTML = '<p class="text-center text-gray-500">အရောင်းစာရင်းများ မရှိသေးပါ။</p>';
@@ -439,15 +879,11 @@
                     const listItem = document.createElement('div');
                     listItem.className = 'bg-white p-3 rounded-lg shadow-sm mb-2 flex justify-between items-center';
 
-                    let amountToDisplay;
-                    if (typeof data.amount === 'number') {
-                        amountToDisplay = `<span class="font-semibold text-blue-600">${data.amount.toLocaleString()}</span> ကျပ်`;
-                        totalAmount += data.amount; // Only sum up numeric amounts
-                    } else {
-                        // For string amounts (including multi-line paste), use <pre> to preserve formatting
-                        // and ensure it's displayed exactly as entered.
-                        amountToDisplay = `<pre class="font-semibold text-blue-600 whitespace-pre-wrap">${data.amount}</pre>`;
-                    }
+                    // Display the amount exactly as it was entered
+                    const amountToDisplay = `<pre class="font-semibold text-blue-600 whitespace-pre-wrap">${data.amount}</pre>`;
+
+                    // Calculate total based on parsing the string
+                    totalAmount += parseBetAmount(data.amount);
 
                     listItem.innerHTML = `
                         <div>
@@ -460,7 +896,6 @@
                 });
                 document.getElementById('daily-total').textContent = totalAmount.toLocaleString();
 
-                // Add event listeners for delete buttons
                 salesList.querySelectorAll('.delete-btn').forEach(button => {
                     button.onclick = (e) => deleteSalesEntry(e.target.dataset.id);
                 });
@@ -484,7 +919,6 @@
                 const docRef = doc(db, `artifacts/${appId}/public/data/salesEntries`, docId);
                 const docSnap = await getDoc(docRef);
 
-                // Basic client-side check for ownership before deleting
                 if (docSnap.exists() && docSnap.data().userId === currentUserId) {
                     await deleteDoc(docRef);
                     displayMessage("အရောင်းစာရင်း ဖျက်ပြီးပါပြီ။");
@@ -498,97 +932,383 @@
         }
 
         /**
-         * Displays the Admin View modal and loads all sales data.
-         * Only accessible if the current user is an admin.
+         * Shows the Admin Application View and loads the nickname summary.
          */
-        function showAdminView() {
+        async function showAdminAppView() {
             if (!isAdmin) {
                 displayMessage("Admin View ကို ဝင်ရောက်ရန် ခွင့်ပြုချက်မရှိပါ။");
                 return;
             }
-            openModal('admin-view-modal');
-            loadAllSalesData();
+            document.getElementById('main-app-view').classList.add('hidden');
+            document.getElementById('admin-app-view').classList.remove('hidden');
+            // Show nickname list by default when entering admin view
+            document.getElementById('admin-sales-list').classList.remove('hidden');
+            document.getElementById('all-2d-summary-list').classList.add('hidden');
+            document.getElementById('back-to-nicknames-btn').classList.add('hidden');
+            document.getElementById('admin-view-title').textContent = 'Admin View - Nicknames';
+            // The 2D summary button is now always visible in the header
+            await loadAllSalesDataGroupedByNickname();
+            await updateSessionUI(); // Update admin session lock UI on entering admin view
         }
 
         /**
-         * Loads all sales data from the public collection for the Admin View.
-         * Groups data by nickname and then by date for better readability.
+         * Hides the Admin Application View and shows the Main Application View.
          */
-        async function loadAllSalesData() {
+        function hideAdminAppView() {
+            document.getElementById('admin-app-view').classList.add('hidden');
+            document.getElementById('main-app-view').classList.remove('hidden');
+        }
+
+        /**
+         * Loads all sales data from the public collection for the Admin View,
+         * grouped by nickname and calculates daily totals for the CURRENTLY SELECTED SESSION.
+         */
+        async function loadAllSalesDataGroupedByNickname() {
             const adminSalesList = document.getElementById('admin-sales-list');
             adminSalesList.innerHTML = '<p class="text-center text-gray-500">ဒေတာများ တင်နေသည်...</p>';
+            document.getElementById('back-to-nicknames-btn').classList.add('hidden');
+            document.getElementById('admin-view-title').textContent = 'Admin View - Nicknames';
+            document.getElementById('admin-sales-list').classList.remove('hidden'); // Ensure nickname list is visible
+            document.getElementById('all-2d-summary-list').classList.add('hidden'); // Hide 2D summary
 
             try {
-                // Query all sales entries from the public collection
-                const q = query(collection(db, `artifacts/${appId}/public/data/salesEntries`));
+                // Fetch all sales data for the current date and selected session
+                const q = query(
+                    collection(db, `artifacts/${appId}/public/data/salesEntries`),
+                    where("date", "==", formatDate(currentDate)),
+                    where("session", "==", currentSession)
+                );
                 const querySnapshot = await getDocs(q);
 
-                if (querySnapshot.empty) {
-                    adminSalesList.innerHTML = '<p class="text-center text-gray-500">အရောင်းစာရင်းများ မရှိသေးပါ။</p>';
-                    return;
-                }
-
-                // Group data by nickname and then by date
                 const groupedSales = {};
                 querySnapshot.forEach(doc => {
                     const data = doc.data();
                     if (!groupedSales[data.nickname]) {
-                        groupedSales[data.nickname] = {};
+                        groupedSales[data.nickname] = [];
                     }
-                    if (!groupedSales[data.nickname][data.date]) {
-                        groupedSales[data.nickname][data.date] = [];
-                    }
-                    groupedSales[data.nickname][data.date].push(data);
+                    groupedSales[data.nickname].push(data);
                 });
+                // Store only data relevant to the current session for this view
+                allSalesData = groupedSales; // This needs to be re-evaluated for overall admin view
 
-                adminSalesList.innerHTML = ''; // Clear loading message
+                adminSalesList.innerHTML = '';
 
-                // Render grouped sales data
-                for (const nickname in groupedSales) {
-                    const nicknameSection = document.createElement('div');
-                    nicknameSection.className = 'mb-6 p-4 bg-blue-50 rounded-lg shadow-md';
-                    nicknameSection.innerHTML = `<h3 class="text-lg font-bold text-blue-700 mb-3">Nickname: ${nickname}</h3>`;
-
-                    for (const date in groupedSales[nickname]) {
-                        const dateSection = document.createElement('div');
-                        dateSection.className = 'mb-4 p-3 bg-white rounded-lg shadow-sm';
-                        let dailyTotal = 0;
-                        let salesItemsHtml = '';
-                        // Sort entries by timestamp within each date
-                        groupedSales[nickname][date].sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate());
-                        groupedSales[nickname][date].forEach(entry => {
-                            let amountToDisplay;
-                            if (typeof entry.amount === 'number') {
-                                amountToDisplay = `${entry.amount.toLocaleString()} ကျပ်`;
-                                dailyTotal += entry.amount; // Only sum up numeric amounts for admin view total
-                            } else {
-                                amountToDisplay = `<pre class="font-semibold text-blue-600 whitespace-pre-wrap">${entry.amount}</pre>`; // Display as is for strings
-                            }
-
-                            salesItemsHtml += `
-                                <div class="flex justify-between items-center text-sm text-gray-700 mb-1">
-                                    <span>${new Date(entry.timestamp.toDate()).toLocaleTimeString()}</span>
-                                    <span class="font-semibold">${amountToDisplay}</span>
-                                </div>
-                            `;
-                        });
-                        dateSection.innerHTML += `
-                            <h4 class="text-md font-semibold text-gray-800 mb-2">ရက်စွဲ: ${date}</h4>
-                            ${salesItemsHtml}
-                            <div class="border-t pt-2 mt-2 flex justify-between font-bold text-gray-900">
-                                <span>စုစုပေါင်း:</span>
-                                <span>${dailyTotal.toLocaleString()} ကျပ်</span>
-                            </div>
-                        `;
-                        nicknameSection.appendChild(dateSection);
-                    }
-                    adminSalesList.appendChild(nicknameSection);
+                const nicknameTotals = {};
+                for (const nickname in allSalesData) {
+                    let totalForNickname = 0;
+                    allSalesData[nickname].forEach(entry => {
+                        totalForNickname += parseBetAmount(entry.amount);
+                    });
+                    nicknameTotals[nickname] = totalForNickname;
                 }
+
+                const sortedNicknames = Object.keys(nicknameTotals).sort();
+
+                if (sortedNicknames.length === 0) {
+                    adminSalesList.innerHTML = '<p class="text-center text-gray-500">အရောင်းစာရင်းများ မရှိသေးပါ။</p>';
+                    return;
+                }
+
+                sortedNicknames.forEach(nickname => {
+                    const nicknameCard = document.createElement('div');
+                    nicknameCard.className = 'bg-white p-4 rounded-lg shadow-sm admin-nickname-card flex justify-between items-center';
+                    nicknameCard.dataset.nickname = nickname;
+
+                    nicknameCard.innerHTML = `
+                        <div>
+                            <p class="text-md font-bold text-gray-800">${nickname}</p>
+                            <p class="text-sm text-gray-600">${nicknameTotals[nickname].toLocaleString()}</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    `;
+                    adminSalesList.appendChild(nicknameCard);
+
+                    nicknameCard.onclick = () => showDetailedSalesForNickname(nickname);
+                });
 
             } catch (error) {
                 console.error("Error loading all sales data for admin view:", error);
                 adminSalesList.innerHTML = '<p class="text-center text-red-500">ဒေတာများ တင်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။</p>';
                 displayMessage("Admin View ဒေတာများ တင်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+        }
+
+        /**
+         * Displays detailed sales data for a specific nickname in the Admin View.
+         * @param {string} nickname - The nickname to display details for.
+         */
+        function showDetailedSalesForNickname(nickname) {
+            const adminSalesList = document.getElementById('admin-sales-list');
+            const backButton = document.getElementById('back-to-nicknames-btn');
+            const adminViewTitle = document.getElementById('admin-view-title');
+
+            adminSalesList.innerHTML = '';
+            adminViewTitle.textContent = `Admin View - ${nickname} ၏ စာရင်းများ`;
+            backButton.classList.remove('hidden');
+            // 2D summary button is always visible in the header
+
+            const salesForNickname = allSalesData[nickname]; // This 'allSalesData' currently only holds data for the selected session and date
+            if (!salesForNickname || Object.keys(salesForNickname).length === 0) {
+                adminSalesList.innerHTML = '<p class="text-center text-gray-500">ဤ Nickname အတွက် အရောင်းစာရင်းများ မရှိသေးပါ။</p>';
+                return;
+            }
+
+            // Group by date for detailed view within a nickname
+            const salesByDate = {};
+            salesForNickname.forEach(entry => {
+                if (!salesByDate[entry.date]) {
+                    salesByDate[entry.date] = [];
+                }
+                salesByDate[entry.date].push(entry);
+            });
+
+            const sortedDates = Object.keys(salesByDate).sort().reverse(); // Sort dates in descending order
+
+            sortedDates.forEach(date => {
+                const dateSection = document.createElement('div');
+                dateSection.className = 'mb-4 p-3 bg-white rounded-lg shadow-sm';
+                let dailyTotal = 0;
+                let salesItemsHtml = '';
+                salesByDate[date].sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate());
+                salesByDate[date].forEach(entry => {
+                    // Display the amount exactly as it was entered
+                    const amountToDisplay = `<pre class="font-semibold text-blue-600 whitespace-pre-wrap">${entry.amount}</pre>`;
+
+                    // Calculate daily total based on parsing the string
+                    dailyTotal += parseBetAmount(entry.amount);
+
+                    salesItemsHtml += `
+                        <div class="flex justify-between items-center text-sm text-gray-700 mb-1">
+                            <span>${new Date(entry.timestamp.toDate()).toLocaleTimeString()}</span>
+                            <span class="font-semibold">${amountToDisplay}</span>
+                        </div>
+                    `;
+                });
+                dateSection.innerHTML += `
+                    <h4 class="text-md font-semibold text-gray-800 mb-2">ရက်စွဲ: ${date} (${currentSession === 'morning' ? 'မနက်' : 'ညနေ'}ပွဲ)</h4>
+                    ${salesItemsHtml}
+                    <div class="border-t pt-2 mt-2 flex justify-between font-bold text-gray-900">
+                        <span>စုစုပေါင်း:</span>
+                        <span>${dailyTotal.toLocaleString()}</span>
+                    </div>
+                `;
+                adminSalesList.appendChild(dateSection);
+            });
+        }
+
+        /**
+         * Loads and displays the consolidated 00-99 2D summary for the CURRENTLY SELECTED SESSION.
+         */
+        async function loadAll2DSummary() {
+            const adminSalesList = document.getElementById('admin-sales-list');
+            const all2dSummaryList = document.getElementById('all-2d-summary-list');
+            const backButton = document.getElementById('back-to-nicknames-btn');
+            const adminViewTitle = document.getElementById('admin-view-title');
+            const summaryContentDiv = document.getElementById('2d-summary-content');
+            const grandTotalSpan = document.getElementById('2d-summary-grand-total');
+
+            adminSalesList.classList.add('hidden'); // Hide nickname list
+            all2dSummaryList.classList.remove('hidden'); // Show 2D summary
+            backButton.classList.remove('hidden'); // Show back button
+            adminViewTitle.textContent = `စုစုပေါင်း: ဂဏန်းစာရင်း (100)ကွက် (${currentSession === 'morning' ? 'မနက်' : 'ညနေ'}ပွဲ)`; // Updated title
+            // The 2D summary button is always visible in the header
+
+            summaryContentDiv.innerHTML = '<p class="text-center text-gray-500">2D စုစုပေါင်း ဒေတာများ တင်နေသည်...</p>';
+            grandTotalSpan.textContent = '0';
+
+            const all2DTotals = new Map();
+            // Initialize all 00-99 numbers with 0 total
+            for (let i = 0; i < 100; i++) {
+                all2DTotals.set(String(i).padStart(2, '0'), 0);
+            }
+
+            let grandTotal = 0;
+
+            try {
+                // Fetch all sales data for the current date and selected session
+                const q = query(
+                    collection(db, `artifacts/${appId}/public/data/salesEntries`),
+                    where("date", "==", formatDate(currentDate)),
+                    where("session", "==", currentSession)
+                );
+                const querySnapshot = await getDocs(q);
+
+                // Aggregate amounts for each 2D number
+                querySnapshot.forEach(doc => {
+                    const entry = doc.data();
+                    const detailedBets = getDetailedBetAmounts(entry.amount);
+                    detailedBets.forEach(bet => {
+                        const currentTotal = all2DTotals.get(bet.number) || 0;
+                        all2DTotals.set(bet.number, currentTotal + bet.amount);
+                    });
+                    // Also add to grand total using parseBetAmount for overall total
+                    grandTotal += parseBetAmount(entry.amount);
+                });
+
+                let summaryHtml = '';
+                // Sort 2D numbers from 00 to 99
+                const sorted2DNumbers = Array.from(all2DTotals.keys()).sort();
+
+                sorted2DNumbers.forEach(num => {
+                    const total = all2DTotals.get(num);
+                    // Display all numbers 00-99, even if total is 0
+                    summaryHtml += `
+                        <div class="summary-item">
+                            <span class="summary-number">${num}=</span>
+                            <span class="summary-amount">${total.toLocaleString()}</span>
+                        </div>
+                    `;
+                });
+                
+                summaryContentDiv.innerHTML = summaryHtml;
+                grandTotalSpan.textContent = grandTotal.toLocaleString();
+
+                document.getElementById('copy-2d-summary-btn').onclick = copy2DSummaryToClipboard;
+
+            } catch (error) {
+                console.error("Error loading 2D summary:", error);
+                summaryContentDiv.innerHTML = '<p class="text-center text-red-500">2D စုစုပေါင်း ဒေတာများ တင်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။</p>';
+                displayMessage("2D စုစုပေါင်း ဒေတာများ တင်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+        }
+
+        /**
+         * Copies the displayed 2D summary to the clipboard.
+         */
+        function copy2DSummaryToClipboard() {
+            const summaryContentDiv = document.getElementById('2d-summary-content');
+            const grandTotalSpan = document.getElementById('2d-summary-grand-total');
+            let textToCopy = '';
+
+            const items = summaryContentDiv.querySelectorAll('.summary-item');
+            items.forEach(item => {
+                const number = item.querySelector('.summary-number').textContent.replace('=', '').trim();
+                const amount = item.querySelector('.summary-amount').textContent.replace(/,/g, '').trim();
+                textToCopy += `${number}=${amount}\n`;
+            });
+            
+            textToCopy += `Total=${grandTotalSpan.textContent.replace(/,/g, '')}`;
+
+            // Use document.execCommand('copy') as navigator.clipboard.writeText() might not work in iframes
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            textarea.style.position = 'fixed'; // Avoid scrolling to bottom
+            textarea.style.opacity = '0'; // Hide it
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                displayMessage("စာရင်း ကော်ပီကူးယူပြီးပါပြီ။");
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                displayMessage("ကော်ပီကူးယူရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+
+        /**
+         * Clears all sales data for the currently selected date and session.
+         * Admin only.
+         * This function is no longer called by a button in the UI.
+         */
+        /*
+        async function clearSessionData() {
+            if (!isAdmin) {
+                displayMessage("ရှင်းလင်းရန် ခွင့်ပြုချက်မရှိပါ။");
+                return;
+            }
+
+            if (!confirm("လက်ရှိပွဲချိန်၏ အရောင်းစာရင်းအားလုံးကို ရှင်းလင်းမှာ သေချာပါသလား။ ဤလုပ်ဆောင်ချက်သည် ပြန်ဖျက်၍မရပါ။")) {
+                return;
+            }
+
+            try {
+                const q = query(
+                    collection(db, `artifacts/${appId}/public/data/salesEntries`),
+                    where("date", "==", formatDate(currentDate)),
+                    where("session", "==", currentSession)
+                );
+                const querySnapshot = await getDocs(q);
+                const batch = writeBatch(db);
+
+                querySnapshot.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+                displayMessage(`လက်ရှိ ${currentSession === 'morning' ? 'မနက်' : 'ညနေ'} ပွဲချိန်၏ စာရင်းများ ရှင်းလင်းပြီးပါပြီ။`);
+                // Reload data after clearing
+                if (document.getElementById('admin-sales-list').classList.contains('hidden')) {
+                    loadAll2DSummary(); // If 2D summary is visible, reload it
+                } else {
+                    loadAllSalesDataGroupedByNickname(); // Otherwise, reload nickname list
+                }
+            } catch (error) {
+                console.error("Error clearing session data:", error);
+                displayMessage("စာရင်းများ ရှင်းလင်းရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+        }
+        */
+
+        /**
+         * Toggles the lock status for the currently selected date and session.
+         * Admin only.
+         */
+        async function toggleSessionLock() {
+            if (!isAdmin) {
+                displayMessage("ပိတ်ရန်/ဖွင့်ရန် ခွင့်ပြုချက်မရှိပါ။");
+                return;
+            }
+
+            const sessionDocRef = doc(db, `artifacts/${appId}/public/data/sessionStatus`, `${formatDate(currentDate)}_${currentSession}`);
+            try {
+                const docSnap = await getDoc(sessionDocRef);
+                let newLockStatus = true; // Default to locking
+
+                if (docSnap.exists()) {
+                    newLockStatus = !docSnap.data().locked; // Toggle current status
+                }
+
+                await setDoc(sessionDocRef, { locked: newLockStatus }, { merge: true });
+                displayMessage(`လက်ရှိ ${currentSession === 'morning' ? 'မနက်' : 'ညနေ'} ပွဲချိန်ကို ${newLockStatus ? 'ပိတ်' : 'ဖွင့်'}လိုက်ပါပြီ။`);
+                await updateSessionUI(); // Update UI immediately
+            } catch (error) {
+                console.error("Error toggling session lock:", error);
+                displayMessage("ပွဲချိန် Lock/Unlock ပြုလုပ်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+        }
+
+        /**
+         * Updates the UI elements related to session lock status (button text, input field state).
+         */
+        async function updateSessionUI() {
+            const toggleButton = document.getElementById('toggle-session-lock-btn');
+            const betInput = document.getElementById('bet-amount-input');
+            const addBetButton = document.getElementById('add-bet-button');
+
+            const sessionDocRef = doc(db, `artifacts/${appId}/public/data/sessionStatus`, `${formatDate(currentDate)}_${currentSession}`);
+            try {
+                const docSnap = await getDoc(sessionDocRef);
+                const isLocked = docSnap.exists() && docSnap.data().locked;
+
+                if (isAdmin) {
+                    toggleButton.textContent = isLocked ? 'ဖွင့်မည်' : 'ပိတ်မည်';
+                    toggleButton.classList.remove('bg-gray-400', 'bg-red-500', 'bg-green-500'); // Remove old colors
+                    toggleButton.classList.add(isLocked ? 'bg-green-500' : 'bg-red-500', isLocked ? 'text-white' : 'text-white'); // Apply new colors
+                } else {
+                    // For regular users, disable input if locked
+                    betInput.disabled = isLocked;
+                    addBetButton.disabled = isLocked;
+                    if (isLocked) {
+                        betInput.placeholder = `လက်ရှိ ${currentSession === 'morning' ? 'မနက်' : 'ညနေ'} ပွဲချိန် ပိတ်ထားပါသည်။`;
+                    } else {
+                        betInput.placeholder = "ထိုးကြေးထည့်ပါ";
+                    }
+                }
+            } catch (error) {
+                console.error("Error updating session UI:", error);
+                displayMessage("ပွဲချိန် UI အခြေအနေ ပြောင်းလဲရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
             }
         }
 
@@ -618,22 +1338,57 @@
             messageBox.classList.remove('hidden');
             setTimeout(() => {
                 messageBox.classList.add('hidden');
-            }, 3000); // Hide after 3 seconds
+            }, 3000);
         }
 
         // Event Listeners - attached after the window and DOM are fully loaded
         window.onload = function() {
-            initializeFirebase(); // Start Firebase initialization and authentication
+            initializeFirebase();
 
-            // Attach event listeners to UI elements
             document.getElementById('prev-date-btn').onclick = () => changeDate(-1);
             document.getElementById('next-date-btn').onclick = () => changeDate(1);
             document.getElementById('nickname-circle-btn').onclick = () => openModal('nickname-modal');
             document.getElementById('close-nickname-modal').onclick = () => closeModal('nickname-modal');
             document.getElementById('set-nickname-button').onclick = setNickname;
             document.getElementById('add-bet-button').onclick = addSalesEntry;
-            document.getElementById('admin-view-button').onclick = showAdminView;
-            document.getElementById('close-admin-view-modal').onclick = () => closeModal('admin-view-modal');
+            document.getElementById('admin-view-button').onclick = showAdminAppView;
+            document.getElementById('close-admin-app-view-btn').onclick = hideAdminAppView;
+            
+            // Back button in admin view
+            document.getElementById('back-to-nicknames-btn').onclick = () => {
+                document.getElementById('admin-sales-list').classList.remove('hidden'); // Show nickname list
+                document.getElementById('all-2d-summary-list').classList.add('hidden'); // Hide 2D summary
+                document.getElementById('back-to-nicknames-btn').classList.add('hidden'); // Hide back button
+                document.getElementById('admin-view-title').textContent = 'Admin View - Nicknames';
+                loadAllSalesDataGroupedByNickname(); // Reload nickname list for current session
+            };
+
+            document.getElementById('show-all-2d-summary-btn').onclick = loadAll2DSummary;
+            // Removed clear-session-btn event listener
+            // document.getElementById('clear-session-btn').onclick = clearSessionData; 
+            document.getElementById('toggle-session-lock-btn').onclick = toggleSessionLock;
+
+            // Session radio button listeners
+            document.getElementById('session-morning').onchange = (e) => {
+                currentSession = e.target.value;
+                updateDateDisplay(); // Reload data for the new session
+                // Check which view is active in admin and reload accordingly
+                if (document.getElementById('all-2d-summary-list').classList.contains('hidden')) {
+                    loadAllSalesDataGroupedByNickname(); // Nickname list is visible
+                } else {
+                    loadAll2DSummary(); // 2D summary is visible
+                }
+            };
+            document.getElementById('session-evening').onchange = (e) => {
+                currentSession = e.target.value;
+                updateDateDisplay(); // Reload data for the new session
+                // Check which view is active in admin and reload accordingly
+                if (document.getElementById('all-2d-summary-list').classList.contains('hidden')) {
+                    loadAllSalesDataGroupedByNickname(); // Nickname list is visible
+                } else {
+                    loadAll2DSummary(); // 2D summary is visible
+                }
+            };
         };
     </script>
 </body>
